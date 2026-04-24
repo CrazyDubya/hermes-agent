@@ -1,5 +1,5 @@
 ---
-name: shop
+name: shopify
 description: >
   Personal shopping assistant via Shop (shop.app) — search millions of products
   across Shopify and beyond, compare prices, find similar items, track orders,
