@@ -12,7 +12,16 @@ setup:
   help: "CLI auto-runs via uvx. ComfyUI install: https://docs.comfy.org/installation"
 metadata:
   hermes:
-    tags: [comfyui, image-generation, stable-diffusion, flux, creative, generative-ai, video-generation]
+    tags:
+      [
+        comfyui,
+        image-generation,
+        stable-diffusion,
+        flux,
+        creative,
+        generative-ai,
+        video-generation,
+      ]
     related_skills: [stable-diffusion-image-generation, image_gen]
     category: creative
 ---
@@ -24,6 +33,7 @@ The CLI wraps ComfyUI's REST API into an agent-friendly interface — workflows 
 "skills" with named parameters (e.g., `prompt`, `seed`) instead of raw node graphs.
 
 **Reference files in this skill:**
+
 - `references/cli-reference.md` — complete command reference with all subcommands and options
 - `references/api-notes.md` — underlying REST API routes (for debugging / advanced use)
 - `scripts/comfyui_setup.sh` — workspace initialization script
@@ -46,6 +56,7 @@ The `comfyui-skill` CLI turns ComfyUI workflows into callable "skills":
 3. **Retrieve** outputs → CLI downloads generated files locally
 
 The agent never sees raw node IDs or graph wiring. The CLI handles:
+
 - Editor-format → API-format conversion (resolves reroutes, widget ordering via `/object_info`)
 - Auto-upload of local images referenced in args
 - Dependency checking (missing custom nodes, models)
@@ -84,7 +95,7 @@ it's on PATH directly and `uvx` is not needed.
 
 The CLI talks to a running ComfyUI server. If the user doesn't have one:
 
-- Point them to https://docs.comfy.org/installation
+- Point them to https://docs.comfy.org/installation. If they ask for help in onboarding, read the docs and help them set things up.
 - Supports: NVIDIA (CUDA), AMD (ROCm), Intel Arc, Apple Silicon (MPS), CPU-only
 - Desktop app available for Windows/macOS; manual install for Linux
 - Comfy Cloud available for users without a GPU (https://platform.comfy.org)
@@ -200,19 +211,19 @@ returned as file paths.
 
 ## Quick Decision Tree
 
-| User says | Command |
-|-----------|---------|
-| "generate an image" / "draw" | `run <skill> --args '{"prompt": "..."}'` |
-| "import this workflow" | `workflow import <path>` |
-| "use this image" (img2img) | `upload <image>` then `run` with the reference |
-| "inpaint this" | `upload <mask> --mask` then `run` |
-| "what workflows do I have" | `list` |
-| "what models are available" | `models list checkpoints` |
-| "check if everything's installed" | `deps check <skill>` |
-| "what failed" / "show history" | `history list <skill>` |
-| "cancel that" | `cancel <prompt_id>` |
-| "free up GPU memory" | `free` |
-| "which nodes exist for X" | `nodes search <query>` |
+| User says                         | Command                                        |
+| --------------------------------- | ---------------------------------------------- |
+| "generate an image" / "draw"      | `run <skill> --args '{"prompt": "..."}'`       |
+| "import this workflow"            | `workflow import <path>`                       |
+| "use this image" (img2img)        | `upload <image>` then `run` with the reference |
+| "inpaint this"                    | `upload <mask> --mask` then `run`              |
+| "what workflows do I have"        | `list`                                         |
+| "what models are available"       | `models list checkpoints`                      |
+| "check if everything's installed" | `deps check <skill>`                           |
+| "what failed" / "show history"    | `history list <skill>`                         |
+| "cancel that"                     | `cancel <prompt_id>`                           |
+| "free up GPU memory"              | `free`                                         |
+| "which nodes exist for X"         | `nodes search <query>`                         |
 
 ## Multi-Server
 
