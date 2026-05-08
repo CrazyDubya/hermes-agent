@@ -771,6 +771,7 @@ const sidebars: SidebarsConfig = {
         'guides/agent-email-address',
         'guides/github-pr-review-agent',
         'guides/webhook-github-pr-review',
+        'guides/backup-and-transfer',
         'guides/migrate-from-openclaw',
         'guides/aws-bedrock',
         'guides/google-vertex',
