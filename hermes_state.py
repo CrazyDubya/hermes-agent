@@ -705,8 +705,21 @@ class SessionDB:
         system_prompt: str = None,
         user_id: str = None,
         parent_session_id: str = None,
+        **kwargs,
     ) -> None:
-        """Shared INSERT OR IGNORE for session rows."""
+        """Shared INSERT OR IGNORE for session rows.
+
+        The session schema has evolved over time and a few call sites still
+        pass compatibility-only metadata such as ``session_kind``. Accept and
+        ignore unknown kwargs so older persistence paths keep working instead
+        of crashing on a schema-adjacent argument.
+        """
+        session_kind = kwargs.pop("session_kind", None)
+        if session_kind and (not source or source == "unknown"):
+            source = session_kind
+        if kwargs:
+            logger.debug("Ignoring unsupported session insert kwargs: %s", sorted(kwargs))
+
         def _do(conn):
             conn.execute(
                 """INSERT OR IGNORE INTO sessions (id, source, user_id, model, model_config,
