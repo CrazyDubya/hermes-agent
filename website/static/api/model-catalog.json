@@ -215,6 +215,9 @@
         },
         {
           "id": "deepseek/deepseek-v4-pro"
+        },
+        {
+          "id": "deepseek/deepseek-v4-flash"
         }
       ]
     }

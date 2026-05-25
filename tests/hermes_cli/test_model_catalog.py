@@ -46,6 +46,7 @@ def _valid_manifest() -> dict:
                 "models": [
                     {"id": "anthropic/claude-opus-4.7"},
                     {"id": "moonshotai/kimi-k2.6"},
+                    {"id": "deepseek/deepseek-v4-flash"},
                 ],
             },
         },
@@ -191,7 +192,7 @@ class TestCuratedAccessors:
             model_catalog, "_fetch_manifest", return_value=_valid_manifest()
         ):
             result = model_catalog.get_curated_nous_models()
-        assert result == ["anthropic/claude-opus-4.7", "moonshotai/kimi-k2.6"]
+        assert result == ["anthropic/claude-opus-4.7", "moonshotai/kimi-k2.6", "deepseek/deepseek-v4-flash"]
 
     def test_openrouter_returns_none_when_catalog_empty(self, isolated_home):
         from hermes_cli import model_catalog
@@ -282,7 +283,7 @@ class TestIntegrationWithModelsModule:
         ):
             result = get_curated_nous_model_ids()
 
-        assert result == ["anthropic/claude-opus-4.7", "moonshotai/kimi-k2.6"]
+        assert result == ["anthropic/claude-opus-4.7", "moonshotai/kimi-k2.6", "deepseek/deepseek-v4-flash"]
 
     def test_picker_nous_row_uses_manifest(self, tmp_path, monkeypatch):
         """The /model picker must surface the manifest's nous list, not the
@@ -327,6 +328,7 @@ class TestIntegrationWithModelsModule:
         assert nous_row["models"] == [
             "anthropic/claude-opus-4.7",
             "moonshotai/kimi-k2.6",
+            "deepseek/deepseek-v4-flash",
         ]
 
 
