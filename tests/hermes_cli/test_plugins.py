@@ -374,6 +374,26 @@ class TestPluginHooks:
         # Should not raise
         mgr.invoke_hook("pre_tool_call", tool_name="test", args={}, task_id="t1")
 
+    def test_register_hook_supports_decorator_style(self, tmp_path, monkeypatch):
+        """Plugins using @ctx.register_hook(...) should load without warnings."""
+        plugins_dir = tmp_path / "hermes_test" / "plugins"
+        _make_plugin_dir(
+            plugins_dir,
+            "decorator_hook_plugin",
+            register_body=(
+                '@ctx.register_hook("post_tool_call")\n'
+                '    def _on_post_tool_call(**kw):\n'
+                '        return {"seen": kw.get("tool_name")}'
+            ),
+        )
+        monkeypatch.setenv("HERMES_HOME", str(tmp_path / "hermes_test"))
+
+        mgr = PluginManager()
+        mgr.discover_and_load()
+
+        results = mgr.invoke_hook("post_tool_call", tool_name="decorator-test", args={}, result=None, task_id="t1")
+        assert results == [{"seen": "decorator-test"}]
+
     def test_hook_exception_does_not_propagate(self, tmp_path, monkeypatch):
         """A hook callback that raises does NOT crash the caller."""
         plugins_dir = tmp_path / "hermes_test" / "plugins"

@@ -192,13 +192,30 @@ def _get_extract_backend() -> str:
 def _get_capability_backend(capability: str) -> str:
     """Shared helper for per-capability backend selection.
 
-    Reads ``web.{capability}_backend`` from config; if set and available,
-    uses it. Otherwise falls through to the shared ``_get_backend()``.
+    Reads ``web.{capability}_backend`` from config first. For extract/crawl,
+    if no explicit backend is configured, fall back to the active provider for
+    that capability instead of the shared search backend. This avoids
+    accidentally selecting a search-only backend such as ``ddgs`` for
+    ``web_extract`` / ``web_crawl`` when the shared fallback happens to land
+    on a search-only provider.
     """
     cfg = _load_web_config()
     specific = (cfg.get(f"{capability}_backend") or "").lower().strip()
-    if specific and _is_backend_available(specific):
+    if specific:
         return specific
+
+    if capability == "extract":
+        from agent.web_search_registry import get_active_extract_provider
+
+        provider = get_active_extract_provider()
+        return provider.name if provider else ""
+
+    if capability == "crawl":
+        from agent.web_search_registry import get_active_crawl_provider
+
+        provider = get_active_crawl_provider()
+        return provider.name if provider else ""
+
     return _get_backend()
 
 

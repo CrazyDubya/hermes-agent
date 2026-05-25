@@ -967,6 +967,14 @@ def skill_view(
 
         candidates: List[Tuple[Optional[Path], Path]] = []  # (skill_dir, skill_md)
         seen_md: set = set()
+        lookup_names = [name]
+        if ":" in name:
+            # Compatibility fallback: some callers accidentally emit category-
+            # prefixed local skill names like "research:research-briefing" or
+            # "newsroom-source-diversity-discovery:newsroom-source-diversity-discovery".
+            # Treat the bare skill name as an alias so valid local skills still
+            # resolve instead of failing noisily.
+            lookup_names.append(bare)
 
         def _record(sd: Optional[Path], smd: Path) -> None:
             try:
@@ -979,34 +987,35 @@ def skill_view(
             candidates.append((sd, smd))
 
         for search_dir in all_dirs:
-            # Strategy 1: direct path (e.g., "mlops/axolotl" or bare "axolotl"
-            # at the top of the dir).
-            direct_path = search_dir / name
-            if direct_path.is_dir() and (direct_path / "SKILL.md").exists():
-                _record(direct_path, direct_path / "SKILL.md")
-            elif direct_path.with_suffix(".md").exists():
-                _record(None, direct_path.with_suffix(".md"))
+            for lookup_name in lookup_names:
+                # Strategy 1: direct path (e.g., "mlops/axolotl" or bare "axolotl"
+                # at the top of the dir).
+                direct_path = search_dir / lookup_name
+                if direct_path.is_dir() and (direct_path / "SKILL.md").exists():
+                    _record(direct_path, direct_path / "SKILL.md")
+                elif direct_path.with_suffix(".md").exists():
+                    _record(None, direct_path.with_suffix(".md"))
 
-            # Strategy 1b: categorized form for plugin namespace fall-through
-            # (e.g., a "myplugin:explore" name with no plugin registered also
-            # tries the on-disk path "myplugin/explore").
-            if local_category_name:
-                categorized_path = search_dir / local_category_name
-                if categorized_path.is_dir() and (categorized_path / "SKILL.md").exists():
-                    _record(categorized_path, categorized_path / "SKILL.md")
-                elif categorized_path.with_suffix(".md").exists():
-                    _record(None, categorized_path.with_suffix(".md"))
+                # Strategy 1b: categorized form for plugin namespace fall-through
+                # (e.g., a "myplugin:explore" name with no plugin registered also
+                # tries the on-disk path "myplugin/explore").
+                if local_category_name and lookup_name == name:
+                    categorized_path = search_dir / local_category_name
+                    if categorized_path.is_dir() and (categorized_path / "SKILL.md").exists():
+                        _record(categorized_path, categorized_path / "SKILL.md")
+                    elif categorized_path.with_suffix(".md").exists():
+                        _record(None, categorized_path.with_suffix(".md"))
 
-            # Strategy 2: recursive by directory name (catches nested skills
-            # like "foundations/runtime/explore-codebase" called by bare name).
-            for found_skill_md in iter_skill_index_files(search_dir, "SKILL.md"):
-                if found_skill_md.parent.name == name:
-                    _record(found_skill_md.parent, found_skill_md)
+                # Strategy 2: recursive by directory name (catches nested skills
+                # like "foundations/runtime/explore-codebase" called by bare name).
+                for found_skill_md in iter_skill_index_files(search_dir, "SKILL.md"):
+                    if found_skill_md.parent.name == lookup_name:
+                        _record(found_skill_md.parent, found_skill_md)
 
-            # Strategy 3: legacy flat <name>.md files anywhere under the dir.
-            for found_md in search_dir.rglob(f"{name}.md"):
-                if found_md.name != "SKILL.md":
-                    _record(None, found_md)
+                # Strategy 3: legacy flat <name>.md files anywhere under the dir.
+                for found_md in search_dir.rglob(f"{lookup_name}.md"):
+                    if found_md.name != "SKILL.md":
+                        _record(None, found_md)
 
         if len(candidates) > 1:
             paths = [str(smd) for _, smd in candidates]

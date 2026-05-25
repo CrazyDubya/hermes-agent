@@ -811,22 +811,39 @@ class PluginContext:
             display_name,
         )
 
-    def register_hook(self, hook_name: str, callback: Callable) -> None:
+    def register_hook(
+        self,
+        hook_name: str,
+        callback: Optional[Callable] = None,
+    ):
         """Register a lifecycle hook callback.
+
+        Supports both direct registration:
+            ``ctx.register_hook("pre_tool_call", callback)``
+
+        and decorator style:
+            ``@ctx.register_hook("pre_tool_call")``
 
         Unknown hook names produce a warning but are still stored so
         forward-compatible plugins don't break.
         """
-        if hook_name not in VALID_HOOKS:
-            logger.warning(
-                "Plugin '%s' registered unknown hook '%s' "
-                "(valid: %s)",
-                self.manifest.name,
-                hook_name,
-                ", ".join(sorted(VALID_HOOKS)),
-            )
-        self._manager._hooks.setdefault(hook_name, []).append(callback)
-        logger.debug("Plugin %s registered hook: %s", self.manifest.name, hook_name)
+
+        def _register(cb: Callable):
+            if hook_name not in VALID_HOOKS:
+                logger.warning(
+                    "Plugin '%s' registered unknown hook '%s' "
+                    "(valid: %s)",
+                    self.manifest.name,
+                    hook_name,
+                    ", ".join(sorted(VALID_HOOKS)),
+                )
+            self._manager._hooks.setdefault(hook_name, []).append(cb)
+            logger.debug("Plugin %s registered hook: %s", self.manifest.name, hook_name)
+            return cb
+
+        if callback is None:
+            return _register
+        return _register(callback)
 
     # -- skill registration -------------------------------------------------
 
