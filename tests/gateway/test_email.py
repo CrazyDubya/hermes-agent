@@ -233,6 +233,39 @@ class TestExtractAttachments(unittest.TestCase):
         mock_cache.assert_called_once()
 
 
+class TestEmailPollBackoff(unittest.TestCase):
+    """Test poll-loop backoff after repeated IMAP errors."""
+
+    def _make_adapter(self):
+        from gateway.config import PlatformConfig
+        with patch.dict(os.environ, {
+            "EMAIL_ADDRESS": "hermes@test.com",
+            "EMAIL_PASSWORD": "secret",
+            "EMAIL_IMAP_HOST": "imap.test.com",
+            "EMAIL_IMAP_PORT": "993",
+            "EMAIL_SMTP_HOST": "smtp.test.com",
+            "EMAIL_SMTP_PORT": "587",
+            "EMAIL_POLL_INTERVAL": "15",
+        }):
+            from gateway.platforms.email import EmailAdapter
+            return EmailAdapter(PlatformConfig(enabled=True))
+
+    def test_poll_sleep_seconds_backs_off_and_caps(self):
+        adapter = self._make_adapter()
+        self.assertEqual(adapter._poll_sleep_seconds(), 15)
+        adapter._imap_error_streak = 1
+        self.assertEqual(adapter._poll_sleep_seconds(), 15)
+        adapter._imap_error_streak = 2
+        self.assertEqual(adapter._poll_sleep_seconds(), 30)
+        adapter._imap_error_streak = 5
+        self.assertEqual(adapter._poll_sleep_seconds(), 240)
+        adapter._imap_error_streak = 9
+        self.assertEqual(adapter._poll_sleep_seconds(), 240)
+        adapter._poll_interval = 60
+        adapter._imap_error_streak = 5
+        self.assertEqual(adapter._poll_sleep_seconds(), 300)
+
+
 class TestDispatchMessage(unittest.TestCase):
     """Test email message dispatch logic."""
 
@@ -1061,6 +1094,35 @@ class TestFetchNewMessages(unittest.TestCase):
             results = adapter._fetch_new_messages()
 
         self.assertEqual(results, [])
+
+    def test_fetch_retries_transient_timeout_once(self):
+        """A transient timeout should retry once before failing."""
+        adapter = self._make_adapter()
+
+        raw_email = MIMEText("Retry body", "plain", "utf-8")
+        raw_email["From"] = "retry@test.com"
+        raw_email["Subject"] = "Retry Test"
+        raw_email["Message-ID"] = "<retry@test.com>"
+
+        mock_imap = MagicMock()
+
+        def uid_handler(command, *args):
+            if command == "search":
+                return ("OK", [b"1"])
+            if command == "fetch":
+                return ("OK", [(b"1", raw_email.as_bytes())])
+            return ("NO", [])
+
+        mock_imap.uid.side_effect = uid_handler
+
+        with patch("imaplib.IMAP4_SSL", side_effect=[TimeoutError("timed out"), mock_imap]) as mock_ctor, \
+             patch("gateway.platforms.email.time.sleep") as mock_sleep:
+            results = adapter._fetch_new_messages()
+
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["sender_addr"], "retry@test.com")
+        self.assertEqual(mock_ctor.call_count, 2)
+        mock_sleep.assert_called_once()
 
     def test_fetch_extracts_sender_name(self):
         """Sender name should be extracted from 'Name <addr>' format."""

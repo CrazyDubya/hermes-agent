@@ -648,7 +648,7 @@ def run_conversation(
                                 "result": _results_by_id.get(tc.get("id")),
                                 "arguments": tc["function"].get("arguments"),
                             }
-                            for tc in _m["tool_calls"]
+                            for tc in _m.get("tool_calls") or []
                             if isinstance(tc, dict)
                         ]
                         break
@@ -1959,6 +1959,30 @@ def run_conversation(
                                 "Token persistence failed (session=%s, tokens=%d): %s",
                                 agent.session_id, total_tokens, e,
                             )
+
+                        # D1: per-call cost event (turn-level granularity).
+                        # Best-effort; failures are swallowed inside the helper.
+                        try:
+                            agent._session_db.record_cost_event(
+                                agent.session_id,
+                                turn_index=agent.session_api_calls,
+                                model=agent.model,
+                                provider=agent.provider,
+                                base_url=agent.base_url,
+                                input_tokens=canonical_usage.input_tokens,
+                                output_tokens=canonical_usage.output_tokens,
+                                cache_read_tokens=canonical_usage.cache_read_tokens,
+                                cache_write_tokens=canonical_usage.cache_write_tokens,
+                                reasoning_tokens=canonical_usage.reasoning_tokens,
+                                cost_usd=float(cost_result.amount_usd)
+                                if cost_result.amount_usd is not None else None,
+                                cost_status=cost_result.status,
+                                cost_source=cost_result.source,
+                                latency_ms=int(api_duration * 1000)
+                                if api_duration else None,
+                            )
+                        except Exception:
+                            pass
                     
                     if agent.verbose_logging:
                         logging.debug(f"Token usage: prompt={usage_dict['prompt_tokens']:,}, completion={usage_dict['completion_tokens']:,}, total={usage_dict['total_tokens']:,}")
@@ -3963,7 +3987,7 @@ def run_conversation(
             # Check for tool calls
             if assistant_message.tool_calls:
                 if not agent.quiet_mode:
-                    agent._vprint(f"{agent.log_prefix}🔧 Processing {len(assistant_message.tool_calls)} tool call(s)...")
+                    agent._vprint(f"{agent.log_prefix}🔧 Processing {len(assistant_message.tool_calls or [])} tool call(s)...")
                 
                 if agent.verbose_logging:
                     for tc in assistant_message.tool_calls:
@@ -4738,7 +4762,7 @@ def run_conversation(
                         for m in messages[idx + 1:]
                         if isinstance(m, dict) and m.get("role") == "tool"
                     }
-                    for tc in msg["tool_calls"]:
+                    for tc in msg.get("tool_calls") or []:
                         if not tc or not isinstance(tc, dict): continue
                         if tc["id"] not in answered_ids:
                             err_msg = {

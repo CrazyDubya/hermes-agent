@@ -292,6 +292,10 @@ class PluginManifest:
     # category plugin at ``plugins/image_gen/openai/`` the key is
     # ``image_gen/openai``. When empty, falls back to ``name``.
     key: str = ""
+    # D3: declared capabilities from the manifest's ``permissions:`` block.
+    # Default = unrestricted (all gates open) for backward compat. See
+    # hermes_cli/plugin_caps.py for the gate semantics.
+    capabilities: Any = None
 
 
 @dataclass
@@ -1041,22 +1045,39 @@ class PluginContext:
             display_name,
         )
 
-    def register_hook(self, hook_name: str, callback: Callable) -> None:
+    def register_hook(
+        self,
+        hook_name: str,
+        callback: Optional[Callable] = None,
+    ):
         """Register a lifecycle hook callback.
+
+        Supports both direct registration:
+            ``ctx.register_hook("pre_tool_call", callback)``
+
+        and decorator style:
+            ``@ctx.register_hook("pre_tool_call")``
 
         Unknown hook names produce a warning but are still stored so
         forward-compatible plugins don't break.
         """
-        if hook_name not in VALID_HOOKS:
-            logger.warning(
-                "Plugin '%s' registered unknown hook '%s' "
-                "(valid: %s)",
-                self.manifest.name,
-                hook_name,
-                ", ".join(sorted(VALID_HOOKS)),
-            )
-        self._manager._hooks.setdefault(hook_name, []).append(callback)
-        logger.debug("Plugin %s registered hook: %s", self.manifest.name, hook_name)
+
+        def _register(cb: Callable):
+            if hook_name not in VALID_HOOKS:
+                logger.warning(
+                    "Plugin '%s' registered unknown hook '%s' "
+                    "(valid: %s)",
+                    self.manifest.name,
+                    hook_name,
+                    ", ".join(sorted(VALID_HOOKS)),
+                )
+            self._manager._hooks.setdefault(hook_name, []).append(cb)
+            logger.debug("Plugin %s registered hook: %s", self.manifest.name, hook_name)
+            return cb
+
+        if callback is None:
+            return _register
+        return _register(callback)
 
     # -- middleware registration -------------------------------------------
 
@@ -1511,6 +1532,18 @@ class PluginManager:
                 "Parsed manifest: key=%s name=%s kind=%s source=%s path=%s",
                 key, name, kind, source, plugin_dir,
             )
+            try:
+                from hermes_cli.plugin_caps import parse_capabilities
+                caps = parse_capabilities(data.get("permissions"))
+            except Exception as cap_exc:
+                logger.warning(
+                    "Plugin %s: invalid permissions block (%s); "
+                    "falling back to unrestricted",
+                    key, cap_exc,
+                )
+                from hermes_cli.plugin_caps import PluginCapabilities
+                caps = PluginCapabilities()
+
             return PluginManifest(
                 name=name,
                 version=str(data.get("version", "")),
@@ -1523,6 +1556,7 @@ class PluginManager:
                 path=str(plugin_dir),
                 kind=kind,
                 key=key,
+                capabilities=caps,
             )
         except Exception as exc:
             logger.warning(
@@ -1790,6 +1824,21 @@ class PluginManager:
     # Introspection
     # -----------------------------------------------------------------------
 
+    def get_plugin_capabilities(self, key: str) -> Any:
+        """Return the PluginCapabilities for a loaded plugin (D3).
+
+        Returns an unrestricted (default) capabilities object when the
+        plugin has no declared permissions block, or when the key is
+        unknown — the latter so call sites can treat "no plugin context"
+        identically to "no restrictions". Operators tighten this by
+        adding ``permissions:`` to the plugin's plugin.yaml.
+        """
+        from hermes_cli.plugin_caps import PluginCapabilities
+        loaded = self._plugins.get(key)
+        if loaded is None or loaded.manifest.capabilities is None:
+            return PluginCapabilities()
+        return loaded.manifest.capabilities
+
     def list_plugins(self) -> List[Dict[str, Any]]:
         """Return a list of info dicts for all discovered plugins."""
         result: List[Dict[str, Any]] = []
@@ -1808,6 +1857,9 @@ class PluginManager:
                     "middleware": len(loaded.middleware_registered),
                     "commands": len(loaded.commands_registered),
                     "error": loaded.error,
+                    "permissions_declared": bool(
+                        getattr(loaded.manifest.capabilities, "declared", False)
+                    ),
                 }
             )
         return result

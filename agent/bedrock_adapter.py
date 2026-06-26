@@ -609,7 +609,7 @@ def convert_messages_to_converse(
                 content_blocks.extend(_convert_content_to_converse(content))
 
             # Convert tool calls
-            tool_calls = msg.get("tool_calls", [])
+            tool_calls = msg.get("tool_calls") or []
             for tc in (tool_calls or []):
                 fn = tc.get("function", {})
                 args_str = fn.get("arguments", "{}")

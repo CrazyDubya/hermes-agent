@@ -398,6 +398,31 @@ class TestGenerateSummaryNoneContent:
         assert isinstance(summary, str)
         assert summary.startswith(SUMMARY_PREFIX)
 
+    def test_none_tool_calls_in_assistant_message_do_not_crash(self):
+        """Regression: assistant tool_calls=None should be treated as empty.
+
+        This protects the summary serializer from backend adapters that emit
+        assistant turns with explicit null tool_calls.
+        """
+        mock_response = MagicMock()
+        mock_response.choices = [MagicMock()]
+        mock_response.choices[0].message.content = "[CONTEXT SUMMARY]: tool calls absent"
+
+        with patch("agent.context_compressor.get_model_context_length", return_value=100000):
+            c = ContextCompressor(model="test", quiet_mode=True)
+
+        messages = [
+            {"role": "user", "content": "do something"},
+            {"role": "assistant", "content": "ok", "tool_calls": None},
+            {"role": "assistant", "content": None},
+            {"role": "user", "content": "thanks"},
+        ]
+
+        with patch("agent.context_compressor.call_llm", return_value=mock_response):
+            summary = c._generate_summary(messages)
+        assert isinstance(summary, str)
+        assert summary.startswith(SUMMARY_PREFIX)
+
     def test_none_content_in_system_message_compress(self):
         """System message with content=None should not crash during compress."""
         with patch("agent.context_compressor.get_model_context_length", return_value=100000):

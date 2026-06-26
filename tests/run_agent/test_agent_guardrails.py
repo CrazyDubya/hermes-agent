@@ -149,6 +149,9 @@ class TestCapDelegateTaskCalls:
     def test_empty_list_safe(self):
         assert AIAgent._cap_delegate_task_calls([]) == []
 
+    def test_none_safe(self):
+        assert AIAgent._cap_delegate_task_calls(None) == []
+
     def test_original_list_not_mutated(self):
         tcs = [make_tc("delegate_task") for _ in range(MAX_CONCURRENT_CHILDREN + 2)]
         original_len = len(tcs)

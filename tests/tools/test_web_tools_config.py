@@ -391,6 +391,27 @@ class TestBackendSelection:
              patch("tools.web_tools._ddgs_package_importable", return_value=False):
             assert _get_backend() == "firecrawl"
 
+    def test_extract_fallback_prefers_extract_capability_over_shared_ddgs(self):
+        """web_extract should not inherit the shared ddgs fallback when no extract backend is configured."""
+        from tools.web_tools import _get_extract_backend
+
+        fake_provider = types.SimpleNamespace(name="firecrawl")
+        with patch("tools.web_tools._load_web_config", return_value={}), \
+             patch("agent.web_search_registry.get_active_extract_provider", return_value=fake_provider), \
+             patch("tools.web_tools._get_backend", return_value="ddgs") as mock_get_backend:
+            assert _get_extract_backend() == "firecrawl"
+            mock_get_backend.assert_not_called()
+
+    def test_extract_fallback_returns_empty_when_no_extract_provider_available(self):
+        """If no extract-capable provider is active, the extractor should surface the configured-missing state."""
+        from tools.web_tools import _get_extract_backend
+
+        with patch("tools.web_tools._load_web_config", return_value={}), \
+             patch("agent.web_search_registry.get_active_extract_provider", return_value=None), \
+             patch("tools.web_tools._get_backend", return_value="ddgs") as mock_get_backend:
+            assert _get_extract_backend() == ""
+            mock_get_backend.assert_not_called()
+
     def test_invalid_config_falls_through_to_fallback(self):
         """web.backend=invalid → ignored, uses key-based fallback."""
         from tools.web_tools import _get_backend

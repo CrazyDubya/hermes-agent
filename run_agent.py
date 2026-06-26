@@ -3454,23 +3454,28 @@ class AIAgent:
         )
 
     @staticmethod
-    def _cap_delegate_task_calls(tool_calls: list) -> list:
+    def _cap_delegate_task_calls(tool_calls: list | None) -> list:
         """Truncate excess delegate_task calls to max_concurrent_children.
 
         The delegate_tool caps the task list inside a single call, but the
         model can emit multiple separate delegate_task tool_calls in one
         turn.  This truncates the excess, preserving all non-delegate calls.
 
-        Returns the original list if no truncation was needed.
+        Returns an empty list for None or an empty input.
         """
         from tools.delegate_tool import _get_max_concurrent_children
+        if tool_calls is None:
+            return []
+        normalized_tool_calls = tool_calls
+        if not normalized_tool_calls:
+            return normalized_tool_calls
         max_children = _get_max_concurrent_children()
-        delegate_count = sum(1 for tc in tool_calls if tc.function.name == "delegate_task")
+        delegate_count = sum(1 for tc in normalized_tool_calls if tc.function.name == "delegate_task")
         if delegate_count <= max_children:
-            return tool_calls
+            return normalized_tool_calls
         kept_delegates = 0
         truncated = []
-        for tc in tool_calls:
+        for tc in normalized_tool_calls:
             if tc.function.name == "delegate_task":
                 if kept_delegates < max_children:
                     truncated.append(tc)
@@ -3485,22 +3490,27 @@ class AIAgent:
         return truncated
 
     @staticmethod
-    def _deduplicate_tool_calls(tool_calls: list) -> list:
+    def _deduplicate_tool_calls(tool_calls: list | None) -> list:
         """Remove duplicate (tool_name, arguments) pairs within a single turn.
 
         Only the first occurrence of each unique pair is kept.
-        Returns the original list if no duplicates were found.
+        Returns an empty list for None or an empty input.
         """
+        if tool_calls is None:
+            return []
+        normalized_tool_calls = tool_calls
+        if not normalized_tool_calls:
+            return normalized_tool_calls
         seen: set = set()
         unique: list = []
-        for tc in tool_calls:
+        for tc in normalized_tool_calls:
             key = (tc.function.name, tc.function.arguments)
             if key not in seen:
                 seen.add(key)
                 unique.append(tc)
             else:
                 logger.warning("Removed duplicate tool call: %s", tc.function.name)
-        return unique if len(unique) < len(tool_calls) else tool_calls
+        return unique if len(unique) < len(normalized_tool_calls) else normalized_tool_calls
 
     def _repair_tool_call(self, tool_name: str) -> str | None:
         """Forwarder — see ``agent.agent_runtime_helpers.repair_tool_call``."""

@@ -1135,7 +1135,7 @@ class ContextCompressor(ContextEngine):
                 continue
             new_tcs = []
             modified = False
-            for tc in msg["tool_calls"]:
+            for tc in msg.get("tool_calls") or []:
                 if isinstance(tc, dict):
                     args = tc.get("function", {}).get("arguments", "")
                     if len(args) > 500:
@@ -1202,7 +1202,7 @@ class ContextCompressor(ContextEngine):
             if role == "assistant":
                 if len(content) > self._CONTENT_MAX:
                     content = content[:self._CONTENT_HEAD] + "\n...[truncated]...\n" + content[-self._CONTENT_TAIL:]
-                tool_calls = msg.get("tool_calls", [])
+                tool_calls = msg.get("tool_calls") or []
                 if tool_calls:
                     tc_parts = []
                     for tc in tool_calls:

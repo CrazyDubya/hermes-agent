@@ -1905,6 +1905,19 @@ class TestBuildAssistantMessage:
         assert "reasoning_details" in result
         assert result["reasoning_details"][0]["text"] == "step1"
 
+    def test_reasoning_details_dict_is_normalized(self, agent):
+        msg = _mock_assistant_msg(
+            content="ans",
+            reasoning_details={"type": "reasoning.summary", "text": "step1"},
+        )
+        result = agent._build_assistant_message(msg, "stop")
+        assert result["reasoning_details"][0]["text"] == "step1"
+
+    def test_reasoning_details_scalar_is_ignored_safely(self, agent):
+        msg = _mock_assistant_msg(content="ans", reasoning_details=42)
+        result = agent._build_assistant_message(msg, "stop")
+        assert "reasoning_details" not in result
+
     def test_empty_content(self, agent):
         msg = _mock_assistant_msg(content=None)
         result = agent._build_assistant_message(msg, "stop")

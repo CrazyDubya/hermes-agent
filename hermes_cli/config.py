@@ -6011,6 +6011,16 @@ def _load_config_impl(*, want_deepcopy: bool) -> Dict[str, Any]:
             except Exception as e:
                 _warn_config_parse_failure(config_path, e)
 
+        # D4: layer repo-level .hermes/agents.yaml between user config and
+        # CLI flags. Precedence: defaults < user < repo < CLI.
+        try:
+            from hermes_cli.repo_config import load_repo_config
+            repo_overrides, _repo_path = load_repo_config()
+            if repo_overrides:
+                config = _deep_merge(config, repo_overrides)
+        except Exception as exc:
+            logger.debug("repo_config layer skipped: %s", exc)
+
         normalized = _normalize_root_model_keys(_normalize_max_turns_config(config))
         expanded = _expand_env_vars(normalized)
         # Managed scope wins at the leaf. Applied AFTER user expansion so a user

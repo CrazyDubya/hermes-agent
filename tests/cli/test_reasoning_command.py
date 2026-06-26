@@ -538,6 +538,18 @@ class TestInlineThinkBlockExtraction(unittest.TestCase):
         self.assertEqual(len(captured), 1)
         self.assertIn("Deep analysis", captured[0])
 
+    def test_reasoning_details_none_and_scalar_do_not_crash(self):
+        agent = self._make_agent()
+        none_msg = self._build_msg("Answer.")
+        none_msg.reasoning_details = None
+        result_none = agent._build_assistant_message(none_msg, "stop")
+        self.assertIsNone(result_none["reasoning"])
+
+        scalar_msg = self._build_msg("Answer.")
+        scalar_msg.reasoning_details = {"type": "thinking", "thinking": "ok"}
+        result_scalar = agent._build_assistant_message(scalar_msg, "stop")
+        self.assertEqual(result_scalar["reasoning"], "ok")
+
 
 # ---------------------------------------------------------------------------
 # Config defaults

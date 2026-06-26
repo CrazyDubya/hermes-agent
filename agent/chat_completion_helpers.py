@@ -935,20 +935,27 @@ def build_assistant_message(agent, assistant_message, finish_reason: str) -> dic
     if "reasoning_content" not in msg and reasoning_text:
         msg["reasoning_content"] = reasoning_text
 
-    if hasattr(assistant_message, 'reasoning_details') and assistant_message.reasoning_details:
+    if hasattr(assistant_message, 'reasoning_details') and assistant_message.reasoning_details is not None:
         # Pass reasoning_details back unmodified so providers (OpenRouter,
         # Anthropic, OpenAI) can maintain reasoning continuity across turns.
         # Each provider may include opaque fields (signature, encrypted_content)
         # that must be preserved exactly.
         raw_details = assistant_message.reasoning_details
+        if isinstance(raw_details, dict):
+            raw_details = [raw_details]
+        elif not isinstance(raw_details, (list, tuple)):
+            raw_details = []
+
         preserved = []
         for d in raw_details:
             if isinstance(d, dict):
                 preserved.append(d)
+            elif hasattr(d, "model_dump"):
+                dumped = d.model_dump()
+                if isinstance(dumped, dict):
+                    preserved.append(dumped)
             elif hasattr(d, "__dict__"):
                 preserved.append(d.__dict__)
-            elif hasattr(d, "model_dump"):
-                preserved.append(d.model_dump())
         if preserved:
             msg["reasoning_details"] = preserved
 

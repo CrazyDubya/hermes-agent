@@ -92,6 +92,19 @@ class TestSessionLifecycle:
         assert session["model"] == "test-model"
         assert session["ended_at"] is None
 
+    def test_create_session_accepts_legacy_session_kind(self, db):
+        """Legacy callers still pass session_kind; treat it as compatibility metadata."""
+        sid = db.create_session(
+            session_id="legacy-1",
+            source="unknown",
+            session_kind="cli",
+        )
+        assert sid == "legacy-1"
+
+        session = db.get_session("legacy-1")
+        assert session is not None
+        assert session["source"] == "cli"
+
 
     def test_get_nonexistent_session(self, db):
         assert db.get_session("nonexistent") is None

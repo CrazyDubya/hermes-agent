@@ -3240,6 +3240,38 @@ class TestCodexAdapterReasoningTranslation:
         assert captured.get("reasoning") == {"effort": "medium", "summary": "auto"}
         assert captured.get("include") == ["reasoning.encrypted_content"]
 
+    def test_missing_output_list_falls_back_to_output_text(self):
+        """Regression: final.output=None must not crash the Codex adapter."""
+        from agent.auxiliary_client import _CodexCompletionsAdapter
+
+        fake_final = SimpleNamespace(
+            output=None,
+            output_text="hi from fallback",
+            usage=SimpleNamespace(input_tokens=1, output_tokens=1, total_tokens=2),
+        )
+
+        class _FakeStream:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return False
+
+            def __iter__(self):
+                return iter([])
+
+            def get_final_response(self):
+                return fake_final
+
+        real_client = MagicMock()
+        real_client.responses.stream = MagicMock(return_value=_FakeStream())
+        adapter = _CodexCompletionsAdapter(real_client, "gpt-5.3-codex")
+
+        result = adapter.create(messages=[{"role": "user", "content": "hi"}])
+
+        assert result is not None
+        assert result.choices[0].message.content == "hi from fallback"
+
     def test_no_extra_body_means_no_reasoning_keys(self):
         """Baseline: without extra_body, no reasoning/include is sent (preserves
         current behavior for callers that don't opt in)."""

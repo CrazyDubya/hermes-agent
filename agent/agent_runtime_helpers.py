@@ -132,7 +132,7 @@ def convert_to_trajectory_format(agent, messages: List[Dict[str, Any]], user_que
                     content += convert_scratchpad_to_think(msg["content"]) + "\n"
                 
                 # Add tool calls wrapped in XML tags
-                for tool_call in msg["tool_calls"]:
+                for tool_call in msg.get("tool_calls") or []:
                     if not tool_call or not isinstance(tool_call, dict): continue
                     # Parse arguments - should always succeed since we validate during conversation
                     # but keep try-except as safety net
@@ -1103,18 +1103,23 @@ def extract_reasoning(agent, assistant_message) -> Optional[str]:
     
     # Check reasoning_details array (OpenRouter unified format)
     # Format: [{"type": "reasoning.summary", "summary": "...", ...}, ...]
-    if hasattr(assistant_message, 'reasoning_details') and assistant_message.reasoning_details:
-        for detail in assistant_message.reasoning_details:
-            if isinstance(detail, dict):
-                # Extract summary from reasoning detail object
-                summary = (
-                    detail.get('summary')
-                    or detail.get('thinking')
-                    or detail.get('content')
-                    or detail.get('text')
-                )
-                if summary and summary not in reasoning_parts:
-                    reasoning_parts.append(summary)
+    reasoning_details = getattr(assistant_message, 'reasoning_details', None)
+    if isinstance(reasoning_details, dict):
+        reasoning_details = [reasoning_details]
+    elif not isinstance(reasoning_details, (list, tuple)):
+        reasoning_details = []
+
+    for detail in reasoning_details:
+        if isinstance(detail, dict):
+            # Extract summary from reasoning detail object
+            summary = (
+                detail.get('summary')
+                or detail.get('thinking')
+                or detail.get('content')
+                or detail.get('text')
+            )
+            if summary and summary not in reasoning_parts:
+                reasoning_parts.append(summary)
 
     # Some providers embed reasoning directly inside assistant content
     # instead of returning structured reasoning fields.  Only fall back
