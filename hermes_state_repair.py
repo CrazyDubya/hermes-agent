@@ -745,6 +745,30 @@ def state_db_has_structural_damage(db_path: Path) -> bool:
         itertools.chain.from_iterable(line.splitlines() for line in lines), master_rows)
 
 
+def _bounded_integrity_check(conn: sqlite3.Connection, db_path: Path) -> Optional[str]:
+    """Return integrity damage, or skip only a probe that exceeds two seconds."""
+    integrity_deadline = time.monotonic() + 2.0
+
+    def _abort_slow_integrity_check() -> int:
+        return 1 if time.monotonic() >= integrity_deadline else 0
+
+    try:
+        conn.set_progress_handler(_abort_slow_integrity_check, 10_000)
+        rows = conn.execute("PRAGMA integrity_check(20)").fetchall()
+        problems = [str(r[0]) for r in rows if r and str(r[0]).lower() != "ok"]
+        return "; ".join(problems[:3]) if problems else None
+    except sqlite3.OperationalError as exc:
+        if "interrupted" not in str(exc).lower():
+            return str(exc)
+        logger.debug("state.db integrity probe skipped after time budget: %s", db_path)
+        return None
+    finally:
+        try:
+            conn.set_progress_handler(None, 0)
+        except sqlite3.Error:
+            pass
+
+
 def _db_opens_cleanly(db_path: Path) -> Optional[str]:
     """Probe a DB on a fresh connection. Returns None if healthy, else a reason.
 
@@ -767,10 +791,9 @@ def _db_opens_cleanly(db_path: Path) -> Optional[str]:
             # tokenizer absence must never classify as corruption.
             load_fts5_cjk_extension(conn)
             conn.execute("PRAGMA journal_mode").fetchone()
-            rows = conn.execute("PRAGMA integrity_check").fetchall()
-            problems = [str(r[0]) for r in rows if r and str(r[0]).lower() != "ok"]
-            if problems:
-                return "; ".join(problems[:3])
+            integrity_problem = _bounded_integrity_check(conn, db_path)
+            if integrity_problem:
+                return integrity_problem
             conn.execute("SELECT COUNT(*) FROM sessions").fetchone()
             # FTS5 read probe: partial shadow-table corruption makes MATCH/snippet/rank raise while integrity_check
             # reports healthy. MATCH '""' (empty phrase) parses, scans zero rows and exercises the shadow tables;
