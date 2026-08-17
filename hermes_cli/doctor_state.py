@@ -47,7 +47,7 @@ def _bits(*pairs) -> list:
     return [fmt() for value, fmt in pairs if value is not None]
 
 
-def _render_state_db_stats(stats: dict, holders=None) -> list:
+def _render_state_db_stats(stats: dict, holders=None, sessions_auto_prune: bool | None = None) -> list:
     """Turn a collect_state_db_stats() dict into ``(kind, text, detail)`` rows, kind 'info' / 'warn'.
 
     Pure formatting — no I/O — so it is unit-testable without the doctor CLI. Tolerates None in every field.
@@ -91,7 +91,9 @@ def _render_state_db_stats(stats: dict, holders=None) -> list:
     # Oversized DB: suggest auto_prune, plus the offline optimize-storage pass when the FTS rebuild is
     # pending OR the DB predates the current trigram layout (fts_storage_version < FTS_STORAGE_VERSION).
     if logical is not None and logical > STATE_DB_SIZE_WARN_BYTES:
-        detail = "consider enabling sessions.auto_prune in config.yaml to bound growth"
+        detail = ("session auto-pruning is enabled; review retention if growth continues"
+                  if sessions_auto_prune is True else
+                  "consider enabling sessions.auto_prune in config.yaml to bound growth")
         stale_trigram = (fts is not None and fts.get("messages_fts_trigram")
                          and (stats.get("fts_storage_version") or 0) < FTS_STORAGE_VERSION)
         if stats.get("fts_rebuild_pending") or stale_trigram:
@@ -280,7 +282,16 @@ def _state_db_stats(issues: list, state_db_path: Path) -> None:
     the gateway; any failure degrades to one info line rather than failing doctor."""
     with warn_on_error("state.db stats unavailable ({e})", "", report=lambda t, _d: check_info(t)):
         from hermes_state_dbfile import collect_state_db_stats, count_db_holders
-        rows = _render_state_db_stats(collect_state_db_stats(state_db_path), holders=count_db_holders(state_db_path))
+        try:
+            from hermes_cli.config import load_config
+            sessions_auto_prune = bool((load_config() or {}).get("sessions", {}).get("auto_prune"))
+        except Exception:
+            sessions_auto_prune = None
+        rows = _render_state_db_stats(
+            collect_state_db_stats(state_db_path),
+            holders=count_db_holders(state_db_path),
+            sessions_auto_prune=sessions_auto_prune,
+        )
         for _kind, _text, _detail in rows:
             if _kind != "warn":
                 check_info(_text + (f" {_detail}" if _detail else ""))
