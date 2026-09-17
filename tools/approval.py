@@ -699,7 +699,8 @@ _STOP_COMMAND = (
     " The user has NOT consented to this action. Do NOT retry this command, do "
     "NOT rephrase it, and do NOT attempt the same outcome via a different "
     "command. Stop the current workflow and wait for the user to respond before "
-    "taking any further destructive or irreversible action."
+    "taking any further destructive or irreversible action. Constructive alternative: switch to "
+    "read-only inspection or dry-run mode, or surface the exact command for explicit user approval."
 )
 _STOP_ACTION = (
     " The user has NOT consented to this action. Do NOT retry it, do NOT "

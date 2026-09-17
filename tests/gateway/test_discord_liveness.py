@@ -197,8 +197,8 @@ def test_default_liveness_bounds_trigger_timed_recovery(monkeypatch):
 
     adapter = DiscordAdapter(PlatformConfig(enabled=True, token="test-token"))
 
-    assert adapter._liveness_interval_seconds == 15.0
-    assert adapter._liveness_failure_threshold == 2
+    assert adapter._liveness_interval_seconds == 45.0
+    assert adapter._liveness_failure_threshold == 3
     assert adapter._heartbeat_ack_max_age_seconds == 60.0
     assert adapter._max_latency_seconds == 30.0
 

@@ -98,7 +98,7 @@ class TestTransportSecurity(unittest.TestCase):
         with patch("imaplib.IMAP4", return_value=imap) as imap_cls, \
              patch("imaplib.IMAP4_SSL") as imap_ssl_cls:
             self.assertIs(adapter._connect_imap(), imap)
-        imap_cls.assert_called_once_with("127.0.0.1", 1143, timeout=30)
+        imap_cls.assert_called_once_with("127.0.0.1", 1143, timeout=60)
         imap_ssl_cls.assert_not_called()
         imap.starttls.assert_called_once()
 

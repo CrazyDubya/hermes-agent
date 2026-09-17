@@ -30,8 +30,8 @@ _REQUIRED_ARGS = {
 # action='write_file', clobbering the whole file.
 _PATCH_NEEDS_OLD_STRING = (
     "old_string is required for 'patch' and must be the EXACT text currently in the file. "
-    "Read the target file first (read_file on the skill's SKILL.md, or the file named by "
-    "file_path) and copy the snippet verbatim, then retry 'patch'. Do NOT fall back to "
+    "Call skill_view in the same turn (or read_file for the supporting file named by file_path) "
+    "and copy a unique exact snippet verbatim, then retry 'patch'. Do NOT fall back to "
     "action='write_file' — that rewrites the entire file and destroys unrelated content.")
 _PATCH_NEEDS_NEW_STRING = "new_string is required for 'patch'. Use an empty string to delete matched text."
 _PATCH_EITHER_OR = ("Pass EITHER content (full SKILL.md rewrite) OR old_string/new_string "

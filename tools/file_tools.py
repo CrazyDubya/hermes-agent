@@ -937,9 +937,9 @@ def patch_tool(mode: str = "replace", path: str = None, old_string: str = None,
             # which file is edited even when the shell's cwd differs.
             if mode == "replace":
                 if not path:
-                    return tool_error("path required")
+                    return tool_error("path required — supply the target file path; read it first if you need current context")
                 if old_string is None or new_string is None:
-                    return tool_error("old_string and new_string required")
+                    return tool_error("old_string and new_string are required; read the file first and provide exact current text")
                 _replace_target = _path_to_resolved.get(path) or path
                 result = file_ops.patch_replace(_replace_target, old_string, new_string, replace_all)
             elif mode == "patch":

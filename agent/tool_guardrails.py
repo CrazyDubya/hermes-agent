@@ -248,8 +248,8 @@ _DECISION_MESSAGES: dict[str, str] = {
         "Stop retrying the same failing tool path and choose a different approach."
     ),
     "repeated_exact_failure_warning": (
-        "{tool_name} has failed {count} times with identical arguments. This looks like a loop; "
-        "inspect the error and change strategy instead of retrying it unchanged."
+        "{tool_name} has failed {count} times with identical arguments. Stop retrying the same call: "
+        "read the error, fix the root cause, use a different tool or arguments, and refresh context before writes."
     ),
     "idempotent_no_progress_warning": (
         "{tool_name} returned the same result {count} times. Use the result already provided "

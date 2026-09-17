@@ -1066,11 +1066,11 @@ class DiscordAdapter(DiscordMediaMixin, BasePlatformAdapter):
         # WS liveness probe: REST 200 can't prove Gateway events still arrive, so sample WS
         # ready/open/ACK + heartbeat latency; consecutive failures -> retryable-fatal. 0 disables.
         self._liveness_interval_seconds = self._finite_positive_config_float(
-            "websocket_liveness_interval_seconds", 15.0,
+            "websocket_liveness_interval_seconds", 45.0,
             env_key="HERMES_DISCORD_LIVENESS_INTERVAL_SECONDS",
         )
         self._liveness_failure_threshold = self._config_int(
-            "websocket_liveness_failure_threshold", 2,
+            "websocket_liveness_failure_threshold", 3,
             env_key="HERMES_DISCORD_LIVENESS_FAILURE_THRESHOLD",
         )
         self._heartbeat_ack_max_age_seconds = self._finite_positive_config_float(
@@ -1744,8 +1744,19 @@ class DiscordAdapter(DiscordMediaMixin, BasePlatformAdapter):
                 failures = 0
                 continue
             failures += 1
+            measured = ""
+            if reason == "latency_exceeded":
+                latency = getattr(client, "latency", None)
+                if isinstance(latency, (int, float)) and math.isfinite(latency):
+                    measured = f" (latency={latency:.2f}s)"
+            elif reason == "ack_stale":
+                keep_alive = getattr(getattr(client, "ws", None), "_keep_alive", None)
+                last_ack = getattr(keep_alive, "_last_ack", None)
+                ack_age = time.perf_counter() - last_ack if isinstance(last_ack, (int, float)) else None
+                if isinstance(ack_age, (int, float)) and math.isfinite(ack_age):
+                    measured = f" (ack_age={ack_age:.1f}s)"
             logger.warning(
-                "[%s] Discord Gateway WebSocket unhealthy (%s, %d/%d)", self.name, reason, failures,
+                "[%s] Discord Gateway WebSocket unhealthy (%s%s, %d/%d)", self.name, reason, measured, failures,
                 threshold,
             )
             if failures < threshold:

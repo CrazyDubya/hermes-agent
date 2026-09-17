@@ -164,7 +164,7 @@ def _pinned_guard(name: str) -> Optional[str]:
 def _background_review_write_guard(
     name: str, skill_dir: Path, action: str) -> Optional[Dict[str, Any]]:
     """Refuse autonomous curator writes to anything but curator-owned sediment. The review fork
-    has no user in the loop, so it is also blocked on pinned/external/bundled/hub skills."""
+    has no user in the loop, so it is also blocked on pinned/external/bundled/hub skills. Foreground edits must call skill_view in the same turn before writing."""
     if not _is_background_review():
         return None
     refuse = f"Refusing background curator {action} for"

@@ -385,8 +385,8 @@ class EmailAdapter(BasePlatformAdapter):
     def _connect_imap(self) -> imaplib.IMAP4:
         """Create an IMAP connection using implicit TLS, STARTTLS, or plaintext."""
         if self._imap_security == "tls":
-            return imaplib.IMAP4_SSL(self._imap_host, self._imap_port, timeout=30, ssl_context=_tls_context(self._imap_tls_verify, self._imap_host))
-        imap = imaplib.IMAP4(self._imap_host, self._imap_port, timeout=30)
+            return imaplib.IMAP4_SSL(self._imap_host, self._imap_port, timeout=60, ssl_context=_tls_context(self._imap_tls_verify, self._imap_host))
+        imap = imaplib.IMAP4(self._imap_host, self._imap_port, timeout=60)
         if self._imap_security == "starttls":
             try:
                 imap.starttls(ssl_context=_tls_context(self._imap_tls_verify, self._imap_host))
@@ -506,7 +506,7 @@ class EmailAdapter(BasePlatformAdapter):
                 break
             except Exception as e:
                 logger.error("[Email] Poll error: %s", e)
-            await asyncio.sleep(self._poll_interval)
+            await asyncio.sleep(min(self._poll_interval * (2 if self._last_fetch_failed else 1), 60))
 
     async def _check_inbox(self) -> None:
         """Check INBOX for unseen messages and dispatch them."""
@@ -561,7 +561,8 @@ class EmailAdapter(BasePlatformAdapter):
         except Exception as e:
             # _close_imap guarantees the socket dies even when logout() raises IMAP4.abort on a broken
             # connection (#79889).
-            logger.error("[Email] IMAP fetch error: %s", e)
+            log = logger.warning if "timeout" in str(e).lower() or "timed out" in str(e).lower() else logger.error
+            log("[Email] IMAP fetch error%s: %s", " (transient timeout)" if log is logger.warning else "", e)
             self._last_fetch_failed, self._last_fetch_error = True, str(e)
         # Keep the reconnect snapshot current so a mid-outage adapter recreation does not re-dispatch messages already processed.
         self._seen_uids_snapshot[self._address] = set(self._seen_uids)
