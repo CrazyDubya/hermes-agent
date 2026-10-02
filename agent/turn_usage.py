@@ -124,6 +124,20 @@ def record_response_usage(
         getattr(compressor, "_verify_compaction_cleared_threshold", False)
     )
     compressor.update_from_response(usage_dict)
+    # One-shot context window warnings (80%/95%). Always surface to the user — even in
+    # quiet mode — but skip subagents where the parent user cannot act on /compress|/new.
+    if getattr(agent, "_delegate_depth", 0) == 0:
+        _ctx_warning = compressor.check_context_warning()
+        if _ctx_warning:
+            # Prefer lifecycle status (CLI + gateway); fall back to print.
+            _emit = getattr(agent, "_emit_status", None) or getattr(agent, "_safe_print", None)
+            if callable(_emit):
+                try:
+                    _emit(_ctx_warning)
+                except Exception:
+                    print(f"\n{_ctx_warning}\n")
+            else:
+                print(f"\n{_ctx_warning}\n")
     # Usage-anchored accounting: snapshot exact provider usage against the durable
     # transcript (main-loop ONLY; MoA uses pre-fold aggregator usage). The display meter
     # anchors on the turn's FIRST response: later same-turn responses inflate

@@ -2283,6 +2283,8 @@ class ContextCompressor(SummaryDispatchMixin, MicroCompactionMixin, ContextEngin
         # Callers read this to know compression was attempted but aborted (freeze until manual /compress).
         self._last_compress_aborted = self._last_compress_refused_would_grow = False
         self._context_probed = self._context_probe_persistable = False
+        self._warned_80 = False
+        self._warned_95 = False
         self._reset_real_usage_pairing()
         self._last_compression_telemetry = self._active_compression_telemetry = None
         self._compression_telemetry_seed = None
@@ -2853,6 +2855,9 @@ class ContextCompressor(SummaryDispatchMixin, MicroCompactionMixin, ContextEngin
         self._log_init_summary = not quiet_mode
         self._context_probed = False  # True after a step-down from context error
         self.last_prompt_tokens = self.last_completion_tokens = 0
+        # One-shot context-window usage warnings (80% / 95%); reset on /new|/reset.
+        self._warned_80 = False
+        self._warned_95 = False
         self._reset_real_usage_pairing()
         self.summary_model = summary_model_override or ""
         self._session_db: Any = None
@@ -2871,6 +2876,33 @@ class ContextCompressor(SummaryDispatchMixin, MicroCompactionMixin, ContextEngin
         self._apply_real_prompt_verdict()
         # Consume the flag once real usage arrives even without prompt_tokens, so it can't stay armed.
         self._verify_compaction_cleared_threshold = self.awaiting_real_usage_after_compression = False
+
+    def check_context_warning(self) -> str | None:
+        """Return a one-shot warning when context usage crosses 80% or 95%, else None.
+
+        Salvaged from hermes/hermes-865f6958. Each threshold fires at most once per
+        session (reset by ``_reset_session_compaction_state`` / /new / /reset).
+        """
+        if not self.context_length or not self.last_prompt_tokens:
+            return None
+        pct = self.last_prompt_tokens / self.context_length
+        if pct >= 0.95 and not self._warned_95:
+            self._warned_95 = True
+            used = f"{self.last_prompt_tokens:,}"
+            total = f"{self.context_length:,}"
+            return (
+                f"⚠ Context nearly exhausted ({used}/{total} tokens, {pct:.0%}). "
+                f"Risk of errors or truncation. Use /new to start fresh."
+            )
+        if pct >= 0.80 and not self._warned_80:
+            self._warned_80 = True
+            used = f"{self.last_prompt_tokens:,}"
+            total = f"{self.context_length:,}"
+            return (
+                f"⚠ Context window {pct:.0%} full ({used}/{total} tokens). "
+                f"Consider /compress or /new if responses degrade."
+            )
+        return None
 
     def _apply_real_prompt_verdict(self) -> None:
         """Pair the real prompt count with its rough estimate and judge the armed compaction verdict."""
