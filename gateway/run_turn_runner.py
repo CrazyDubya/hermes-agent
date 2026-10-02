@@ -1119,6 +1119,7 @@ class TurnRunner:
             ephemeral_system_prompt=combined_ephemeral or None,
             prefill_messages=runner._prefill_messages or None,
             reasoning_config=reasoning_config, service_tier=runner._service_tier,
+            context_editing=getattr(runner, "_context_editing", None) or {},
             request_overrides=turn_route.get("request_overrides"),
             providers_allowed=pr.get("only"), providers_ignored=pr.get("ignore"), providers_order=pr.get("order"),
             provider_sort=pr.get("sort"), provider_require_parameters=pr.get("require_parameters", False),

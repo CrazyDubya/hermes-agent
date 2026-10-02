@@ -146,6 +146,15 @@ class GatewayConfigLoadersMixin:
         return self._load_ephemeral_system_prompt()
 
     @staticmethod
+    def _load_context_editing() -> dict:
+        """Load context_editing config from config.yaml (Anthropic server-side edits)."""
+        try:
+            from gateway.run import _load_gateway_config
+            cfg = _load_gateway_config()
+            return cfg.get("context_editing") or {}
+        except Exception:
+            return {}
+
     def _load_reasoning_config(model: str = "") -> dict | None:
         """Reasoning effort from config.yaml via :func:`hermes_constants.resolve_reasoning_config`.
 

@@ -2364,7 +2364,7 @@ _PASSTHROUGH_PARAMS = (
     # Toolset filtering
     "enabled_toolsets", "disabled_toolsets",
     # Model response configuration (None = provider/model default)
-    "max_tokens", "reasoning_config", "service_tier",
+    "max_tokens", "reasoning_config", "service_tier", "context_editing",
     "side_agent",
 )
 # Gateway identity params stored as ``agent._<name>``. gateway_session_key is the stable
@@ -2409,6 +2409,7 @@ def init_agent(
     event_callback: Optional[Callable[[str, dict], None]] = None,
     reaction_callback: Optional[Callable[[str], None]] = None, max_tokens: int = None,
     reasoning_config: Dict[str, Any] = None, service_tier: str = None,
+    context_editing: Dict[str, Any] = None,
     request_overrides: Dict[str, Any] = None, prefill_messages: List[Dict[str, Any]] = None,
     platform: str = None, user_id: str = None, user_id_alt: str = None, user_name: str = None,
     chat_id: str = None, chat_name: str = None, chat_type: str = None, thread_id: str = None,
