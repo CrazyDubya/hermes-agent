@@ -1061,6 +1061,20 @@ The **stale non-stream detection** kills non-streaming calls that produce no res
 
 This budget bounds every non-streaming call, including the ones cron jobs and delegated subagents run inline. A provider that accepts a request and then goes silent — connection held open, no bytes, no error — is aborted at the stale timeout and retried, rather than hanging until the much longer socket read timeout (or, for an unattended cron run, until something external kills the process).
 
+### Streaming Timeouts
+
+The LLM streaming connection has two timeout layers. Both auto-adjust for local providers (localhost, LAN IPs) — no configuration needed for most setups.
+
+| Timeout | Default | Local providers | Env var |
+|---------|---------|----------------|---------|
+| Socket read timeout | 120s | Auto-raised to 1800s | `HERMES_STREAM_READ_TIMEOUT` |
+| Stale stream detection | 180s | Auto-disabled | `HERMES_STREAM_STALE_TIMEOUT` |
+| API call (non-streaming) | 1800s | Unchanged | `HERMES_API_TIMEOUT` |
+
+The **socket read timeout** controls how long httpx waits for the next chunk of data from the provider. Local LLMs can take minutes for prefill on large contexts before producing the first token, so Hermes raises this to 30 minutes when it detects a local endpoint. If you explicitly set `HERMES_STREAM_READ_TIMEOUT`, that value is always used regardless of endpoint detection.
+
+The **stale stream detection** kills connections that receive SSE keep-alive pings but no actual content. This is disabled entirely for local providers since they don't send keep-alive pings during prefill.
+
 ## Context Pressure Warnings
 
 Separate from iteration budget pressure, context pressure tracks how close the conversation is to the **compaction threshold** — the point where context compression fires to summarize older messages. This helps both you and the agent understand when the conversation is getting long.
