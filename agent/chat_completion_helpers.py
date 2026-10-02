@@ -484,7 +484,18 @@ def _provider_preferences_for_agent(agent) -> Dict[str, Any]:
     merged = {**flat, **{k: v for k, v in per_model.items() if k in flat}}
     merged["sort"] = _validated_openrouter_provider_sort(merged["sort"])
     merged["require_parameters"] = True if merged["require_parameters"] else None
-    return {key: value for key, value in merged.items() if value}
+    result = {key: value for key, value in merged.items() if value}
+    # Known-broken OpenRouter routes (e.g. minimax/* tool-call streams). User
+    # only/ignore/order always win; tweaks only fill defaults.
+    try:
+        from agent.provider_tweaks import get_provider_tweaks, merge_provider_tweaks
+        base = str(getattr(agent, "base_url", None) or "")
+        tweaks = get_provider_tweaks(getattr(agent, "model", None), base)
+        if tweaks:
+            result = merge_provider_tweaks(result, tweaks)
+    except Exception:
+        logger.debug("OpenRouter provider tweaks failed", exc_info=True)
+    return result
 
 
 def _prompt_cache_scope_for_agent(agent) -> "str | None":
