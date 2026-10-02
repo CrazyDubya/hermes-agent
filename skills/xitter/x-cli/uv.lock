@@ -2,6 +2,112 @@ version = 1
 revision = 3
 requires-python = ">=3.11"
 
+[options]
+exclude-newer = "0001-01-01T00:00:00Z" # This has no effect and is included for backwards compatibility when using relative exclude-newer values.
+exclude-newer-span = "P14D"
+
+[options.exclude-newer-package]
+agent-client-protocol = false
+aiohttp = false
+aiohttp-socks = false
+aiosqlite = false
+alibabacloud-dingtalk = false
+anthropic = false
+asyncpg = false
+azure-identity = false
+boto3 = false
+brotlicffi = false
+browser-harness = false
+certifi = false
+concurrent-log-handler = false
+croniter = false
+cryptography = false
+daytona = false
+ddgs = "2026-08-26T21:52:34Z"
+debugpy = false
+defusedxml = false
+dingtalk-stream = false
+discord-py = false
+edge-tts = false
+elevenlabs = false
+exa-py = false
+fal-client = false
+fastapi = false
+faster-whisper = false
+fire = false
+firecrawl-anydoc = false
+firecrawl-py = false
+google-api-python-client = false
+google-auth = false
+google-auth-httplib2 = false
+google-auth-oauthlib = false
+google-cloud-pubsub = false
+h2 = false
+httplib2 = false
+httpx = false
+httpx2 = false
+huggingface-hub = false
+jinja2 = false
+langfuse = "2026-09-09T16:01:26Z"
+lark-oapi = false
+markdown = false
+maturin = false
+mautrix = false
+mcp = false
+mem0ai = false
+microsoft-teams-apps = false
+mistralai = false
+modal = false
+nemo-relay = false
+neutts = "2026-07-22T14:54:23Z"
+numpy = false
+openai = false
+opentelemetry-exporter-otlp-proto-http = false
+opentelemetry-sdk = false
+packaging = false
+parallel-web = false
+pathspec = false
+pillow = false
+piper-tts = "2026-09-04T16:47:32Z"
+prompt-toolkit = false
+psutil = false
+pvporcupine = false
+pyasn1 = false
+pydantic = false
+pyjwt = false
+pytest = false
+pytest-asyncio = false
+python-dotenv = false
+python-multipart = false
+python-olm = false
+python-telegram-bot = false
+pyyaml = false
+qrcode = false
+requests = false
+rich = false
+ruamel-yaml = false
+ruff = false
+sentencepiece = false
+setuptools = false
+setuptools-rust = false
+sherpa-onnx = "2026-09-10T17:00:04Z"
+sherpa-onnx-core = "2026-09-10T15:58:47Z"
+slack-bolt = false
+slack-sdk = false
+snowballstemmer = false
+sounddevice = false
+soundfile = "2026-06-06T08:58:48Z"
+starlette = false
+tenacity = false
+ty = false
+tzdata = false
+unpaddedbase64 = false
+uvicorn = false
+vercel = false
+websockets = false
+wheel = false
+youtube-transcript-api = false
+
 [[package]]
 name = "anyio"
 version = "4.12.1"
@@ -166,11 +272,11 @@ wheels = [
 
 [[package]]
 name = "python-dotenv"
-version = "1.2.1"
+version = "1.2.2"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/f0/26/19cadc79a718c5edbec86fd4919a6b6d3f681039a2f6d66d14be94e75fb9/python_dotenv-1.2.1.tar.gz", hash = "sha256:42667e897e16ab0d66954af0e60a9caa94f0fd4ecf3aaf6d2d260eec1aa36ad6", size = 44221, upload-time = "2025-10-26T15:12:10.434Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/82/ed/0301aeeac3e5353ef3d94b6ec08bbcabd04a72018415dcb29e588514bba8/python_dotenv-1.2.2.tar.gz", hash = "sha256:2c371a91fbd7ba082c2c1dc1f8bf89ca22564a087c2c287cd9b662adde799cf3", size = 50135, upload-time = "2026-03-01T16:00:26.196Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/14/1b/a298b06749107c305e1fe0f814c6c74aea7b2f1e10989cb30f544a1b3253/python_dotenv-1.2.1-py3-none-any.whl", hash = "sha256:b81ee9561e9ca4004139c6cbba3a238c32b03e4894671e181b671e8cb8425d61", size = 21230, upload-time = "2025-10-26T15:12:09.109Z" },
+    { url = "https://files.pythonhosted.org/packages/0b/d7/1959b9648791274998a9c3526f6d0ec8fd2233e4d4acce81bbae76b44b2a/python_dotenv-1.2.2-py3-none-any.whl", hash = "sha256:1d8214789a24de455a8b8bd8ae6fe3c6b69a5e3d64aa8a8e5d68e694bbcb285a", size = 22101, upload-time = "2026-03-01T16:00:25.09Z" },
 ]
 
 [[package]]
