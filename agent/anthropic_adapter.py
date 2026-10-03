@@ -218,7 +218,7 @@ def _supports_fast_mode(model: str) -> bool:
 # MiniMax's Anthropic-compatible endpoints fail tool-use requests when the tool-streaming beta is
 # present. ``_FAST_MODE_BETA`` enables the ``speed: "fast"`` request parameter.
 _TOOL_STREAMING_BETA = "fine-grained-tool-streaming-2025-05-14"
-_COMMON_BETAS = ["interleaved-thinking-2025-05-14", _TOOL_STREAMING_BETA]
+_COMMON_BETAS = ["interleaved-thinking-2025-05-14", _TOOL_STREAMING_BETA, "context-management-2025-06-27"]
 _CONTEXT_1M_BETA = "context-1m-2025-08-07"
 _FAST_MODE_BETA = "fast-mode-2026-02-01"
 # Required for OAuth/subscription auth; matches Claude Code / pi-ai / OpenCode.
@@ -616,6 +616,7 @@ def build_anthropic_kwargs(
     reasoning_config: Optional[Dict[str, Any]], tool_choice: Optional[str] = None,
     is_oauth: bool = False, preserve_dots: bool = False, context_length: Optional[int] = None,
     base_url: str | None = None, fast_mode: bool = False, drop_context_1m_beta: bool = False,
+    context_editing: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Build kwargs for anthropic.messages.create(). ``max_tokens`` is the OUTPUT cap for one
     response; ``context_length`` is the TOTAL window (input + output). ``max_tokens=None`` uses the
@@ -676,6 +677,40 @@ def build_anthropic_kwargs(
         kwargs.setdefault("extra_body", {})["speed"] = "fast"
         betas = _common_betas_for_base_url(base_url, drop_context_1m_beta=drop_context_1m_beta)
         kwargs["extra_headers"] = _beta_header(betas + (_OAUTH_ONLY_BETAS if is_oauth else []) + [_FAST_MODE_BETA])
+
+    # Anthropic Context Editing API — server-side context management (salvaged from
+    # hermes/hermes-6ec3b1a9). Clears old tool use/result pairs and thinking blocks
+    # server-side AFTER prompt cache lookup but BEFORE token counting.
+    if context_editing and isinstance(context_editing, dict) and context_editing.get("enabled"):
+        try:
+            from agent.model_metadata import get_model_context_length
+            _ctx_len = context_length or get_model_context_length(model)
+        except Exception:
+            _ctx_len = context_length or 200_000
+        trigger_tokens = context_editing.get("trigger_tokens") or int(_ctx_len * 0.60)
+        keep_tool_uses = context_editing.get("keep_tool_uses", 5)
+        keep_thinking_turns = context_editing.get("keep_thinking_turns", 2)
+        clear_at_least = context_editing.get("clear_at_least_tokens") or int(_ctx_len * 0.10)
+        exclude_tools = context_editing.get("exclude_tools") or ["memory", "skill_manage", "todo"]
+        clear_tool_inputs = context_editing.get("clear_tool_inputs", False)
+        edits = []
+        if "thinking" in kwargs:
+            edits.append({
+                "type": "clear_thinking_20251015",
+                "keep": {"type": "thinking_turns", "value": keep_thinking_turns},
+            })
+        edits.append({
+            "type": "clear_tool_uses_20250919",
+            "trigger": {"type": "input_tokens", "value": trigger_tokens},
+            "keep": {"type": "tool_uses", "value": keep_tool_uses},
+            "clear_at_least": {"type": "input_tokens", "value": clear_at_least},
+            "exclude_tools": exclude_tools,
+            "clear_tool_inputs": clear_tool_inputs,
+        })
+        extra_body = kwargs.setdefault("extra_body", {})
+        if isinstance(extra_body, dict):
+            extra_body["context_management"] = {"edits": edits}
+
     return kwargs
 
 

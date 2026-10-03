@@ -658,6 +658,28 @@ tool_loop_guardrails:
 #   200K context, threshold 0.50, ratio 0.20 → 20K tokens of recent tail preserved
 #   1M   context, threshold 0.50, ratio 0.20 → 100K tokens of recent tail preserved
 #
+
+# =============================================================================
+# Anthropic Context Editing (Claude-only, optional)
+# =============================================================================
+# Server-side context management for Claude models. Automatically clears old
+# tool call/result pairs and thinking blocks at the API level, AFTER prompt
+# cache lookup but BEFORE token counting. Preserves prompt cache prefixes while
+# freeing context space. Direct Anthropic API only. Disabled by default.
+#
+# context_editing:
+#   enabled: true
+#   trigger_tokens: null          # null = auto (60% of context window)
+#   keep_tool_uses: 5
+#   keep_thinking_turns: 2
+#   exclude_tools:
+#     - memory
+#     - skill_manage
+#     - todo
+#   clear_tool_inputs: false
+#   clear_at_least_tokens: null   # null = auto (10% of context window)
+
+
 compression:
   # Enable automatic context compression (default: true)
   # Set to false if you prefer to manage context manually or want errors on overflow

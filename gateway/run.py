@@ -3514,6 +3514,7 @@ class GatewayRunner(
         """Load ephemeral per-call config (prefill, reasoning, busy modes, timeouts, routing)."""
         self._prefill_messages = self._load_prefill_messages()
         self._reasoning_config = self._load_reasoning_config()
+        self._context_editing = self._load_context_editing()
         self._service_tier = self._load_service_tier()
         self._show_reasoning = self._load_show_reasoning()
         self._busy_input_mode = self._load_busy_input_mode()

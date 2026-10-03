@@ -272,6 +272,7 @@ class CLIInitMixin:
                 self.reasoning_config = _cli_reasoning
                 self._explicit_reasoning_config = _cli_reasoning
         self.service_tier = _parse_service_tier_config(CLI_CONFIG["agent"].get("service_tier", ""))
+        self.context_editing = CLI_CONFIG.get("context_editing") or {}
 
         pr = CLI_CONFIG.get("provider_routing", {}) or {}
         self._provider_sort = pr.get("sort")

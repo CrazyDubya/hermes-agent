@@ -677,6 +677,7 @@ class CLIAgentSetupMixin:
                 ephemeral_system_prompt=self.system_prompt if self.system_prompt else None,
                 prefill_messages=self.prefill_messages or None,
                 reasoning_config=self.reasoning_config, service_tier=self.service_tier,
+                context_editing=getattr(self, "context_editing", None) or {},
                 request_overrides=request_overrides, providers_allowed=self._providers_only,
                 providers_ignored=self._providers_ignore, providers_order=self._providers_order,
                 provider_sort=self._provider_sort,

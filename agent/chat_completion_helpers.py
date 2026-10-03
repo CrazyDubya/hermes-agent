@@ -484,7 +484,18 @@ def _provider_preferences_for_agent(agent) -> Dict[str, Any]:
     merged = {**flat, **{k: v for k, v in per_model.items() if k in flat}}
     merged["sort"] = _validated_openrouter_provider_sort(merged["sort"])
     merged["require_parameters"] = True if merged["require_parameters"] else None
-    return {key: value for key, value in merged.items() if value}
+    result = {key: value for key, value in merged.items() if value}
+    # Known-broken OpenRouter routes (e.g. minimax/* tool-call streams). User
+    # only/ignore/order always win; tweaks only fill defaults.
+    try:
+        from agent.provider_tweaks import get_provider_tweaks, merge_provider_tweaks
+        base = str(getattr(agent, "base_url", None) or "")
+        tweaks = get_provider_tweaks(getattr(agent, "model", None), base)
+        if tweaks:
+            result = merge_provider_tweaks(result, tweaks)
+    except Exception:
+        logger.debug("OpenRouter provider tweaks failed", exc_info=True)
+    return result
 
 
 def _prompt_cache_scope_for_agent(agent) -> "str | None":
@@ -1419,7 +1430,8 @@ def _build_anthropic_kwargs(agent, api_messages, tools_for_api, reasoning_config
         context_length=ctx_len.context_length if ctx_len else None,
         base_url=getattr(agent, "_anthropic_base_url", None),
         fast_mode=request_overrides.get("speed") == "fast",
-        drop_context_1m_beta=bool(getattr(agent, "_oauth_1m_beta_disabled", False)))
+        drop_context_1m_beta=bool(getattr(agent, "_oauth_1m_beta_disabled", False)),
+        context_editing=getattr(agent, "context_editing", None))
     # Portal reads ``tags`` / ``session_id`` on its Messages route too, but the profile hook
     # is only consulted by the OpenAI-wire transport — merge here to keep sticky routing.
     return _merge_nous_portal_messages_extra_body(agent, anthropic_kwargs)

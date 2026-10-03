@@ -576,6 +576,18 @@ DEFAULT_CONFIG = {
         },
     },
 
+    # Anthropic Context Editing (Claude Messages API only). Server-side clearing of old
+    # tool_use/result pairs and thinking blocks after prompt-cache lookup. Off by default.
+    "context_editing": {
+        "enabled": False,
+        "trigger_tokens": None,       # None = auto (60% of context window)
+        "keep_tool_uses": 5,
+        "keep_thinking_turns": 2,
+        "exclude_tools": ["memory", "skill_manage", "todo"],
+        "clear_tool_inputs": False,
+        "clear_at_least_tokens": None,  # None = auto (10% of context window)
+    },
+
     "compression": {
         "enabled": True,
         # checkpoint_required: fail closed before lossy compaction unless an active memory provider
