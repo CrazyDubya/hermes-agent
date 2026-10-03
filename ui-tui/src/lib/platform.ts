@@ -5,8 +5,8 @@
  * as `key.meta`. Some macOS terminals also translate Cmd+Left/Right/Backspace
  * into readline-style Ctrl+A/Ctrl+E/Ctrl+U before the app sees them.
  * On other platforms the action modifier is Ctrl.
- * Ctrl+C stays the interrupt key on macOS. On non-mac terminals it can also
- * copy an active TUI selection, matching common terminal selection behavior.
+ * Ctrl+C stays the interrupt key on local terminals. Remote sessions can still
+ * accept client-forwarded Cmd+C for copying a TUI selection.
  */
 
 export const isMac = process.platform === 'darwin'
@@ -45,7 +45,7 @@ export const isCopyShortcut = (
   env: NodeJS.ProcessEnv = process.env
 ): boolean =>
   ch.toLowerCase() === 'c' &&
-  (isAction(key, ch, 'c') ||
+  ((isMac && isAction(key, ch, 'c')) ||
     (isRemoteShell(env) && (key.meta || key.super === true)) ||
     // VS Code/Cursor/Windsurf terminal setup forwards Cmd+C as a CSI-u
     // sequence with the super bit plus a benign ctrl bit. Accept that shape

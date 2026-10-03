@@ -10,15 +10,19 @@ export function hotkeys(): [string, string][] {
 
   const copyHotkeys: [string, string][] = isMac
     ? [
+        ['Mouse select', h.copySelection],
         ['Cmd+C', h.copySelection],
         ['Ctrl+C', h.ctrlCMac]
       ]
     : isRemoteShell()
       ? [
-          ['Cmd+C', h.copySelectionForwarded],
+          ['Mouse select / Cmd+C', h.copySelectionForwarded],
           ['Ctrl+C', h.ctrlC]
         ]
-      : [['Ctrl+C', h.ctrlC]]
+      : [
+          ['Mouse select', h.copySelection],
+          ['Ctrl+C', h.ctrlC]
+        ]
 
   return [
     ...copyHotkeys,
