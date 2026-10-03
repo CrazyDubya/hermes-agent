@@ -36,7 +36,8 @@ class AnthropicTransport(ProviderTransport):
 
     _STOP_REASON_MAP = {
         "end_turn": "stop", "tool_use": "tool_calls", "max_tokens": "length", "stop_sequence": "stop",
-        "refusal": "content_filter", "model_context_window_exceeded": "length",
+        "refusal": "content_filter", "sensitive": "content_filter",
+        "model_context_window_exceeded": "length",
     }
 
     @property
@@ -116,11 +117,11 @@ class AnthropicTransport(ProviderTransport):
         return self.map_finish_reason(response.stop_reason)
 
     def validate_response(self, response: Any) -> bool:
-        """Structural check; empty content is legitimate for ``end_turn``/``refusal`` (retrying
-        either would loop forever)."""
+        """Structural check; empty content is legitimate for ``end_turn``/``refusal``/``sensitive``
+        (retrying a content-policy stop would loop forever)."""
         content_blocks = getattr(response, "content", None)
         return isinstance(content_blocks, list) and (
-            bool(content_blocks) or getattr(response, "stop_reason", None) in {"end_turn", "refusal"}
+            bool(content_blocks) or getattr(response, "stop_reason", None) in {"end_turn", "refusal", "sensitive"}
         )
 
     def extract_cache_stats(self, response: Any) -> Optional[Dict[str, int]]:
