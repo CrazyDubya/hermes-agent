@@ -104,6 +104,57 @@ class TestOpenRouter:
         assert agent._anthropic_prompt_cache_policy() == (False, False)
 
 
+class TestOpenRouterExplicitCacheControl:
+    """OpenRouter Qwen-family and DeepSeek V3.2 need explicit cache_control.
+
+    Exact slug allowlist. Envelope layout. Other OpenRouter models, and the
+    same slugs off OpenRouter, stay off.
+    """
+
+    @pytest.mark.parametrize(
+        "model",
+        [
+            "qwen/qwen-plus",
+            "qwen/qwen3-max",
+            "qwen/qwen3.6-plus",
+            "qwen/qwen3-coder-plus",
+            "qwen/qwen3-coder-flash",
+            "deepseek/deepseek-v3.2",
+            "Qwen/Qwen3.6-Plus",
+        ],
+    )
+    def test_allowlisted_openrouter_model_caches_with_envelope_layout(self, model):
+        agent = _make_agent(
+            provider="openrouter",
+            base_url="https://openrouter.ai/api/v1",
+            api_mode="chat_completions",
+            model=model,
+        )
+        assert agent._anthropic_prompt_cache_policy() == (True, False)
+
+    @pytest.mark.parametrize(
+        "model",
+        ["qwen/qwen3-coder", "deepseek/deepseek-chat", "qwen/qwen3.5"],
+    )
+    def test_non_allowlisted_openrouter_slug_does_not_cache(self, model):
+        agent = _make_agent(
+            provider="openrouter",
+            base_url="https://openrouter.ai/api/v1",
+            api_mode="chat_completions",
+            model=model,
+        )
+        assert agent._anthropic_prompt_cache_policy() == (False, False)
+
+    def test_allowlisted_slug_off_openrouter_does_not_cache(self):
+        agent = _make_agent(
+            provider="custom",
+            base_url="https://api.example.com/v1",
+            api_mode="chat_completions",
+            model="qwen/qwen3.6-plus",
+        )
+        assert agent._anthropic_prompt_cache_policy() == (False, False)
+
+
 class TestKimiMoonshotOnOpenRouter:
     """Kimi/Moonshot on OpenRouter honour envelope-layout cache_control (#25970)."""
 

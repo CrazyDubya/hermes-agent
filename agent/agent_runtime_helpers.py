@@ -1712,6 +1712,20 @@ def _route_may_be_custom(agent, eff_provider: str, provider_lower: str, eff_base
         return provider_lower.startswith("custom:")
 
 
+# OpenRouter model IDs that cache only when the request carries explicit
+# cache_control breakpoints (Alibaba Qwen family and DeepSeek V3.2). Other
+# OpenRouter slugs stay off: OpenAI/Google cache automatically, and a
+# non-listed DeepSeek slug must not receive markers. Ported from cline#10578.
+_OPENROUTER_EXPLICIT_CACHE_CONTROL_MODEL_IDS = frozenset({
+    "deepseek/deepseek-v3.2",
+    "qwen/qwen-plus",
+    "qwen/qwen3-max",
+    "qwen/qwen3.6-plus",
+    "qwen/qwen3-coder-plus",
+    "qwen/qwen3-coder-flash",
+})
+
+
 def anthropic_prompt_cache_policy(
     agent, *, provider: Optional[str] = None, base_url: Optional[str] = None,
     api_mode: Optional[str] = None, model: Optional[str] = None,
@@ -1795,6 +1809,9 @@ def anthropic_prompt_cache_policy(
     # Envelope layout is OpenAI-wire only; Portal Claude on native Messages must fall through to the
     # anthropic_messages branch (inner-block markers) or it serves 0% cache hits.
     if (is_openrouter or is_nous_portal) and (is_claude or is_kimi) and not is_anthropic_wire:
+        return True, False
+    # Exact allowlist only. Envelope layout: OpenRouter's wire is chat.completions.
+    if is_openrouter and model_lower in _OPENROUTER_EXPLICIT_CACHE_CONTROL_MODEL_IDS:
         return True, False
     # Nous Portal Qwen takes the envelope path too; the alibaba-family check below only matches
     # provider=opencode/alibaba and would leave Portal traffic uncached.
