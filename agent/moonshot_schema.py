@@ -4,7 +4,9 @@ Violations fail with HTTP 400 "tools.function.parameters is not a valid moonshot
 flavored json schema". Rules: (1) every property schema carries a ``type``;
 (2) with ``anyOf``, ``type`` belongs on the children, never the parent; (3) enum
 arrays under scalar types may not contain null / empty string; (4) every object
-schema carries a ``required`` array, even an empty one. The ``#/definitions/`` →
+schema carries a ``required`` array, even an empty one; (5) a ``$ref`` node is
+only ``{"$ref": ...}`` — sibling keywords are stripped; (6) tuple-style ``items``
+arrays collapse to the first element schema. The ``#/definitions/`` →
 ``#/$defs/`` rewrite lives in ``tools/mcp_tool`` so it applies to all providers.
 """
 
@@ -43,6 +45,11 @@ def _repair_schema(node: Any) -> Any:
     for key, value in node.items():
         if key in _SCHEMA_MAP_KEYS and isinstance(value, dict):
             repaired[key] = {sub_key: _repair_schema(sub_val) for sub_key, sub_val in value.items()}
+        elif key == "items" and isinstance(value, list):
+            # Tuple-style items (positional element schemas) are rejected.
+            # Collapse to the first element schema, or {} if the tuple is empty.
+            first = value[0] if value else {}
+            repaired[key] = _repair_schema(first) if isinstance(first, dict) else first
         elif (key in _SCHEMA_LIST_KEYS and isinstance(value, list)) or (
             key in _SCHEMA_NODE_KEYS and isinstance(value, dict)
         ):
@@ -66,10 +73,15 @@ def _repair_schema(node: Any) -> Any:
     # Moonshot also rejects the non-standard ``nullable`` keyword.
     repaired.pop("nullable", None)
 
-    # Rule 1 ($ref nodes take their type from the referenced definition).
-    # Runs before rule 3 so enum cleanup can see the type.
-    if "$ref" not in repaired:
-        repaired = _fill_missing_type(repaired)
+    # $ref nodes take their type from the referenced definition and must not
+    # carry sibling keywords. Moonshot expands the ref before validation and
+    # rejects description/type/default alongside $ref. Return only the ref so
+    # enum/required cleanup below does not reattach keys.
+    if "$ref" in repaired:
+        return {"$ref": repaired["$ref"]}
+
+    # Rule 1. Runs before enum cleanup so that cleanup can see the type.
+    repaired = _fill_missing_type(repaired)
 
     # Rule 3: drop null/"" enum values under scalar types; drop an emptied enum.
     if isinstance(repaired.get("enum"), list) and repaired.get("type") in _SCALAR_TYPES:

@@ -397,3 +397,120 @@ class TestUnionTypeList:
         assert sort["type"] == "string"
         assert sort["enum"] == ["asc", "desc"]
         assert params["properties"]["sort"]["type"] == ["string", "null"]
+
+
+class TestRefSiblingStripping:
+    """A ``$ref`` node may not carry sibling keywords.
+
+    Moonshot expands the reference before validation and then rejects
+    ``description`` / ``type`` / ``default`` on the same node. The target
+    definition keeps its own description.
+    """
+
+    def test_description_sibling_stripped_from_ref(self):
+        params = {
+            "type": "object",
+            "properties": {
+                "variantOptions": {
+                    "$ref": "#/$defs/VariantOptions",
+                    "description": "Required. The variant options for generation.",
+                },
+            },
+            "$defs": {
+                "VariantOptions": {
+                    "type": "object",
+                    "properties": {},
+                    "description": "Configuration options.",
+                },
+            },
+        }
+        out = sanitize_moonshot_tool_parameters(params)
+        assert out["properties"]["variantOptions"] == {"$ref": "#/$defs/VariantOptions"}
+        assert out["$defs"]["VariantOptions"]["description"] == "Configuration options."
+
+    def test_multiple_siblings_all_stripped(self):
+        params = {
+            "type": "object",
+            "properties": {
+                "p": {
+                    "$ref": "#/$defs/T",
+                    "type": "object",
+                    "description": "x",
+                    "default": {},
+                    "title": "P",
+                },
+            },
+            "$defs": {"T": {"type": "object", "properties": {}}},
+        }
+        out = sanitize_moonshot_tool_parameters(params)
+        assert out["properties"]["p"] == {"$ref": "#/$defs/T"}
+
+    def test_ref_siblings_inside_preserved_anyof(self):
+        params = {
+            "type": "object",
+            "properties": {
+                "v": {
+                    "anyOf": [
+                        {"$ref": "#/$defs/A", "description": "variant A"},
+                        {"$ref": "#/$defs/B", "description": "variant B"},
+                    ],
+                },
+            },
+            "$defs": {
+                "A": {"type": "object", "properties": {}},
+                "B": {"type": "string"},
+            },
+        }
+        out = sanitize_moonshot_tool_parameters(params)
+        children = out["properties"]["v"]["anyOf"]
+        assert children[0] == {"$ref": "#/$defs/A"}
+        assert children[1] == {"$ref": "#/$defs/B"}
+
+
+class TestTupleItems:
+    """Tuple-style ``items`` arrays collapse to a single element schema."""
+
+    def test_tuple_items_collapsed_to_first(self):
+        params = {
+            "type": "object",
+            "properties": {
+                "renderedSize": {
+                    "type": "array",
+                    "items": [{"type": "number"}, {"type": "number"}],
+                    "minItems": 2,
+                    "maxItems": 2,
+                },
+            },
+        }
+        out = sanitize_moonshot_tool_parameters(params)
+        assert out["properties"]["renderedSize"]["items"] == {"type": "number"}
+        assert out["properties"]["renderedSize"]["minItems"] == 2
+        assert out["properties"]["renderedSize"]["maxItems"] == 2
+
+    def test_empty_tuple_items_gets_a_type(self):
+        params = {
+            "type": "object",
+            "properties": {
+                "things": {"type": "array", "items": []},
+            },
+        }
+        out = sanitize_moonshot_tool_parameters(params)
+        items = out["properties"]["things"]["items"]
+        assert isinstance(items, dict)
+        assert items.get("type")
+
+    def test_tuple_items_first_element_is_repaired(self):
+        params = {
+            "type": "object",
+            "properties": {
+                "pair": {
+                    "type": "array",
+                    "items": [{"description": "first"}, {"description": "second"}],
+                },
+            },
+        }
+        out = sanitize_moonshot_tool_parameters(params)
+        assert out["properties"]["pair"]["items"] == {
+            "description": "first",
+            "type": "string",
+        }
