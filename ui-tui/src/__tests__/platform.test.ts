@@ -24,8 +24,8 @@ describeHost('platform action modifier', () => {
 })
 
 describeHost('isCopyShortcut', () => {
-  it('keeps Ctrl+C as the local non-macOS copy chord', () => {
-    expect(isCopyShortcut({ ctrl: true, meta: false, super: false }, 'c', {})).toBe(true)
+  it('keeps Ctrl+C as interrupt instead of local non-macOS copy', () => {
+    expect(isCopyShortcut({ ctrl: true, meta: false, super: false }, 'c', {})).toBe(false)
   })
 
   it('accepts client Cmd+C over SSH even when running on Linux', () => {

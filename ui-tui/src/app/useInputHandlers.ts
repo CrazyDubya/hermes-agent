@@ -688,9 +688,12 @@ export function useInputHandlers(ctx: InputHandlerContext): InputHandlerResult {
         return
       }
 
-      // On macOS, Cmd+C with no selection is a no-op (Ctrl+C below handles interrupt).
-      // On non-macOS, isAction uses Ctrl, so fall through to interrupt/clear/exit.
-      if (isMac) {
+      // Copy shortcuts with no selection are no-ops. Plain Ctrl+C below still
+      // handles interrupt/clear/exit; forwarded Cmd+C over SSH should not
+      // leak through to TextInput as a literal "c".
+      const plainCtrlC = key.ctrl && !key.meta && key.super !== true && ch.toLowerCase() === 'c'
+
+      if (isMac || !plainCtrlC) {
         return
       }
     }
