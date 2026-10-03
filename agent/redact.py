@@ -166,6 +166,8 @@ _PREFIX_PATTERNS = [
     r"sk_test_[A-Za-z0-9]{10,}",        # Stripe secret key (test)
     r"rk_live_[A-Za-z0-9]{10,}",        # Stripe restricted key
     r"SG\.[A-Za-z0-9_-]{10,}",          # SendGrid API key
+    r"AC[a-fA-F0-9]{32}",               # Twilio Account SID
+    r"SK[a-fA-F0-9]{32}",               # Twilio API Key / Auth SID
     r"hf_[A-Za-z0-9]{10,}",             # HuggingFace token
     r"r8_[A-Za-z0-9]{10,}",             # Replicate API token
     r"npm_[A-Za-z0-9]{10,}",            # npm access token
