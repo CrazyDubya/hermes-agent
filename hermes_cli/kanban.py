@@ -296,7 +296,15 @@ def _cmd_init(args: argparse.Namespace) -> int:
         for name in profiles:
             print(f"  {name}")
     else:
-        print("No profiles found under ~/.hermes/profiles/.\n"
+        # Discovery walks get_default_hermes_root()/profiles (HERMES_HOME),
+        # not a hardcoded ~/.hermes. Docker and custom roots live elsewhere;
+        # printing ~/.hermes sends the user to the wrong directory.
+        try:
+            from hermes_constants import get_default_hermes_root
+            where = str(get_default_hermes_root() / "profiles")
+        except Exception:
+            where = "~/.hermes/profiles"
+        print(f"No profiles found under {where}.\n"
               "Create one with `hermes -p <name> setup` before assigning tasks.")
     print(
         "\nNext step: start the gateway so ready tasks actually get picked up.\n"
