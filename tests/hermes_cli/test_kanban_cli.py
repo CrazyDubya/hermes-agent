@@ -241,3 +241,20 @@ def test_run_slash_reclaim_running_task(kanban_home):
 # ---------------------------------------------------------------------------
 
 
+
+
+def test_kanban_init_empty_discovery_prints_resolved_profiles_dir(tmp_path, monkeypatch, capsys):
+    """Empty discovery must name the root actually searched, not ~/.hermes."""
+    home = tmp_path / "opt" / "data"
+    monkeypatch.setenv("HERMES_HOME", str(home))
+    monkeypatch.delenv("HERMES_KANBAN_HOME", raising=False)
+    import hermes_constants
+    monkeypatch.setattr(hermes_constants, "_default_hermes_root_memo", None, raising=False)
+    monkeypatch.setattr(kb, "init_db", lambda *a, **k: home / "kanban.db")
+    monkeypatch.setattr(kb, "list_profiles_on_disk", lambda: [])
+
+    assert kc._cmd_init(argparse.Namespace()) == 0
+
+    out = capsys.readouterr().out
+    assert f"No profiles found under {home / 'profiles'}." in out
+    assert "~/.hermes/profiles" not in out
