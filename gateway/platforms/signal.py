@@ -436,8 +436,16 @@ class SignalAdapter(BasePlatformAdapter):
                         or (envelope_data.get("editMessage") or {}).get("dataMessage"))
         if not data_message:
             return
+        # Modern Signal groups use dataMessage.groupV2.id; legacy V1 groups use
+        # dataMessage.groupInfo.groupId. signal-cli versions differ on which
+        # field they expose for V2 groups. Read groupV2 first so V2-only groups
+        # are not misrouted as DMs. Non-dict payloads must not crash extraction.
         group_info = data_message.get("groupInfo")
-        group_id = group_info.get("groupId") if group_info else None
+        group_v2 = data_message.get("groupV2")
+        group_id = (
+            (group_v2.get("id") if isinstance(group_v2, dict) else None)
+            or (group_info.get("groupId") if isinstance(group_info, dict) else None)
+        )
         is_group = bool(group_id)
         if is_group and not self._group_allowed(group_id):
             return
@@ -465,7 +473,7 @@ class SignalAdapter(BasePlatformAdapter):
                          len(media_urls) if media_urls else 0)
             return
         source = self.build_source(
-            chat_id=chat_id, chat_name=group_info.get("groupName") if group_info else sender_name,
+            chat_id=chat_id, chat_name=(group_info.get("groupName") if isinstance(group_info, dict) else None) or sender_name,
             chat_type="group" if is_group else "dm", user_id=sender,
             user_name=sender_name or sender, user_id_alt=sender_uuid if sender_uuid else None,
             chat_id_alt=group_id if is_group else None)
