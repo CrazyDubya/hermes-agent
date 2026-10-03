@@ -104,6 +104,28 @@ class TestKnownPrefixes:
         ]:
             assert redact_sensitive_text(benign) == benign
 
+    def test_twilio_account_and_api_key_sids(self):
+        """Twilio Account SIDs (AC…) and API Key SIDs (SK…) redact via literal prefixes.
+
+        Salvaged from feat/secrets-phase1; JWT and bare 32-hex patterns were not
+        taken (JWT already covered; bare hex is too broad for _PREFIX_PATTERNS).
+        """
+        account = "AC" + "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6"
+        api_key = "SK" + "0123456789abcdef0123456789abcdef"
+        for token in (account, api_key):
+            result = redact_sensitive_text(f"leaked {token} in output")
+            assert token[2:] not in result, f"{token!r} survived redaction: {result!r}"
+
+    def test_twilio_sid_prefix_requires_length(self):
+        """Short AC/SK hex bodies must not false-positive."""
+        for benign in [
+            "AC0123456789abcdef",  # under 32 hex chars
+            "SK0123456789abcdef",
+            "myAC" + "a" * 32,  # embedded — lookbehind blocks
+            "mySK" + "b" * 32,
+        ]:
+            assert redact_sensitive_text(benign) == benign
+
     def test_agentmail_prefix_needs_a_key_shaped_hex_suffix(self):
         """``am_`` is a common identifier prefix; only the documented hex key body is a secret (#10983)."""
         for benign in ["schema.am_example_identifier_123", "path/to/am_monthly_report.sql"]:
