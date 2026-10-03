@@ -85,7 +85,7 @@ def _get_usage_analytics(days: int = 30, profile: Optional[str] = None):
         # Local calendar day, per-row (DST-correct), the same day /insights uses (agent/insights.py).
         daily = _rows(db, """
             SELECT date(started_at, 'unixepoch', 'localtime') as day,
-                   SUM(input_tokens) as input_tokens,
+                   SUM(input_tokens + COALESCE(cache_read_tokens, 0) + COALESCE(cache_write_tokens, 0)) as input_tokens,
                    SUM(output_tokens) as output_tokens,
                    SUM(cache_read_tokens) as cache_read_tokens,
                    SUM(reasoning_tokens) as reasoning_tokens,
@@ -99,13 +99,13 @@ def _get_usage_analytics(days: int = 30, profile: Optional[str] = None):
 
         by_model = _rows(db, """
             SELECT model,
-                   SUM(input_tokens) as input_tokens,
+                   SUM(input_tokens + COALESCE(cache_read_tokens, 0) + COALESCE(cache_write_tokens, 0)) as input_tokens,
                    SUM(output_tokens) as output_tokens,
                    COALESCE(SUM(estimated_cost_usd), 0) as estimated_cost,
                    COUNT(*) as sessions,
                    SUM(COALESCE(api_call_count, 0)) as api_calls
             FROM sessions WHERE started_at > ? AND model IS NOT NULL
-            GROUP BY model ORDER BY SUM(input_tokens) + SUM(output_tokens) DESC
+            GROUP BY model ORDER BY SUM(input_tokens + COALESCE(cache_read_tokens, 0) + COALESCE(cache_write_tokens, 0)) + SUM(output_tokens) DESC
         """, cutoff)
 
         # Fold in auxiliary usage (vision, compression, ...) from session_model_usage.
@@ -116,7 +116,7 @@ def _get_usage_analytics(days: int = 30, profile: Optional[str] = None):
         by_model = _merge_aux_into_by_model(by_model, aux_rows)
 
         totals = _rows(db, """
-            SELECT SUM(input_tokens) as total_input,
+            SELECT SUM(input_tokens + COALESCE(cache_read_tokens, 0) + COALESCE(cache_write_tokens, 0)) as total_input,
                    SUM(output_tokens) as total_output,
                    SUM(cache_read_tokens) as total_cache_read,
                    SUM(reasoning_tokens) as total_reasoning,
