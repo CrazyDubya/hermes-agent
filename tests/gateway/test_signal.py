@@ -1383,3 +1383,70 @@ class TestRecentSentTimestampRing:
         adapter._track_sent_timestamp({"timestamp": 3})
         # Both 1 and 2 should be evicted on TTL, only 3 remains
         assert list(adapter._recent_sent_timestamps.keys()) == [3]
+
+
+class TestSignalGroupV2Routing:
+    """groupV2.id is preferred; legacy groupInfo.groupId still routes as a group."""
+
+    def _envelope(self, data_message: dict) -> dict:
+        return {
+            "envelope": {
+                "sourceNumber": "+15559998888",
+                "sourceUuid": "uuid-sender",
+                "sourceName": "Alice",
+                "timestamp": 1700000000000,
+                "dataMessage": data_message,
+            }
+        }
+
+    def _run(self, adapter, data_message: dict):
+        captured = []
+
+        async def _handle(event):
+            captured.append(event)
+
+        async def _go():
+            adapter.handle_message = _handle
+            await adapter._handle_envelope(self._envelope(data_message))
+
+        asyncio.run(_go())
+        return captured
+
+    def test_group_v2_id_routes_as_group(self, monkeypatch):
+        adapter = _make_signal_adapter(monkeypatch, group_allowed="*")
+        captured = self._run(adapter, {"message": "hello v2", "groupV2": {"id": "v2group=="}})
+        assert len(captured) == 1
+        assert captured[0].source.chat_id == "group:v2group=="
+        assert captured[0].source.chat_type == "group"
+        assert captured[0].text == "hello v2"
+
+    def test_legacy_group_info_still_routes_as_group(self, monkeypatch):
+        adapter = _make_signal_adapter(monkeypatch, group_allowed="*")
+        captured = self._run(adapter, {"message": "hello v1", "groupInfo": {"groupId": "legacy==", "groupName": "Legacy"}})
+        assert len(captured) == 1
+        assert captured[0].source.chat_id == "group:legacy=="
+        assert captured[0].source.chat_type == "group"
+        assert captured[0].source.chat_name == "Legacy"
+
+    def test_group_v2_preferred_over_group_info(self, monkeypatch):
+        adapter = _make_signal_adapter(monkeypatch, group_allowed="*")
+        captured = self._run(adapter, {
+            "message": "both",
+            "groupV2": {"id": "v2group=="},
+            "groupInfo": {"groupId": "legacy=="},
+        })
+        assert len(captured) == 1
+        assert captured[0].source.chat_id == "group:v2group=="
+
+    def test_no_group_fields_routes_as_dm(self, monkeypatch):
+        adapter = _make_signal_adapter(monkeypatch, group_allowed="*")
+        captured = self._run(adapter, {"message": "dm"})
+        assert len(captured) == 1
+        assert captured[0].source.chat_id == "+15559998888"
+        assert captured[0].source.chat_type == "dm"
+
+    def test_malformed_group_info_does_not_crash(self, monkeypatch):
+        adapter = _make_signal_adapter(monkeypatch, group_allowed="*")
+        captured = self._run(adapter, {"message": "bad", "groupInfo": "not-a-dict"})
+        assert len(captured) == 1
+        assert captured[0].source.chat_type == "dm"
